@@ -6,7 +6,6 @@ import { PopupService } from "./services/popup.service";
 import { ProgressService } from "./services/progress.service";
 import { StorageService } from "./services/storage.service";
 import { ThemeService } from "./services/theme.service";
-import { ProgressBar } from "./components/progress.component";
 import { PopupComponent } from "./components/popup.component";
 import { ThemeComponent } from "./components/theme.component";
 import { AssistantComponent } from "./assistant/components/assistant.component";
@@ -38,7 +37,6 @@ function App() {
   return (
     <ThemeComponent themeService={themeService}>
       <AssistantComponent assistantService={assistantService} themeService={themeService} />
-      <ProgressBar progressService={progressService} verticalOffset={4} />
       <PopupComponent popupService={popupService} />
     </ThemeComponent>
   );

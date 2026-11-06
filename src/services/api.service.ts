@@ -183,6 +183,11 @@ export class ApiService implements Service {
     }
   }
 
+  /** Counts the outside requests that are still running. */
+  get progressService(): ProgressService {
+    return this._progressService;
+  }
+
   get endpoints(): ReactiveMap<string> {
     return this._endpoints$;
   }

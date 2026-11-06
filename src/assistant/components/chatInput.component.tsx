@@ -6,6 +6,7 @@ import { MESSAGE_ROLES } from "../constants/llm.constants";
 import type { META_LMMMessage } from "../model/llm.model";
 import { AgentsService } from "../services/agents.service";
 import { MediatorService } from "../services/mediator.service";
+import { ExternalProgressComponent } from "./activity.component";
 import { ExportMenuComponent } from "./exportMenu.component";
 
 function hasAnswers(chats: Map<string, META_LMMMessage[]>): boolean {
@@ -54,6 +55,9 @@ export function ChatInputComponent(props: {
           alignItems: "flex-end",
           gap: "0.5em",
           padding: "0.5em 0.5em 0.5em 1.1em",
+          // The progress bar of outside requests runs along the top edge, inside the rounded corners.
+          position: "relative",
+          overflow: "hidden",
           borderRadius: "24px",
           bgcolor: "background.default",
           transition: (theme) => theme.transitions.create(["border-color", "box-shadow"]),
@@ -63,6 +67,7 @@ export function ChatInputComponent(props: {
           },
         }}
       >
+        <ExternalProgressComponent progressService={props.chatService.assistantService.apiService.progressService} />
         <InputBase
           value={chatInput ?? ""}
           onChange={(event) => props.chatService.currentTextInput.set(event.target.value)}

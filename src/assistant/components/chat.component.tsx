@@ -7,7 +7,7 @@ import { AssistantService } from "../services/assistant.service";
 import { MediatorService } from "../services/mediator.service";
 import { ChatInputComponent } from "./chatInput.component";
 import { ChatMessagesComponent } from "./chatMessages.component";
-import { ChatStatusComponent } from "./chatStatus.component";
+import { ActivityStatusComponent } from "./activity.component";
 
 export function ChatComponent(props: {
   assistantService: AssistantService;
@@ -80,11 +80,10 @@ export function ChatComponent(props: {
           chatId={MediatorService.VISIBLE_CHAT_ID}
           disableEditting
         />
-
-        <ChatStatusComponent assistantService={props.assistantService} />
       </Box>
 
-      <Box sx={{ flexGrow: 0, padding: props.compact ? "0.5em" : "1em" }}>
+      <Box sx={{ flexGrow: 0, padding: props.compact ? "0 0.5em 0.5em 0.5em" : "0.25em 1em 1em 1em" }}>
+        <ActivityStatusComponent assistantService={props.assistantService} />
         <ChatInputComponent chatService={props.assistantService.mediatorService} showHint={!props.compact} />
       </Box>
     </Card>
