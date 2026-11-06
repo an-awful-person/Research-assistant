@@ -1,0 +1,10 @@
+# The settings of the local SearXNG, on top of its defaults. The secret key comes from SEARXNG_SECRET.
+use_default_settings: true
+
+server:
+  limiter: false
+
+search:
+  formats:
+    - html
+    - json

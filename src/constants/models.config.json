@@ -1,0 +1,4 @@
+{
+  "chat": "qwen3.5:latest",
+  "embedding": "nomic-embed-text:latest"
+}

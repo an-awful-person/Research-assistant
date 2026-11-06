@@ -1,0 +1,14 @@
+node_modules
+dist
+.git
+.vscode
+*.log
+# Secrets stay out of the image: compose passes the keys in when the container starts.
+.env
+.env.*
+*.pem
+*.key
+.npmrc
+# Not needed to build
+README.md
+docker-compose*.yml

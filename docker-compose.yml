@@ -1,0 +1,40 @@
+# Runs the research assistant for everyone on the local network, and keeps it running whenever this computer is on.
+# Ollama runs on this computer itself, outside these containers.
+services:
+  app:
+    build: .
+    # Shares this computer's network, so it reaches Ollama on 127.0.0.1 and other devices can reach it.
+    network_mode: host
+    environment:
+      HOST: 0.0.0.0
+      PORT: ${PORT:-3001}
+      OLLAMA_URL: ${OLLAMA_URL:-http://127.0.0.1:11434}
+      SEARXNG_URL: http://127.0.0.1:${SEARXNG_PORT:-8890}
+      # Web, Reddit and LinkedIn search and some feeds are only meant for personal use. Turned on for everyone here.
+      PERSONAL_USE_FEEDS: "true"
+      # Optional keys shared with everyone who uses the assistant, read from .env. See the README.
+      WIKIPEDIA_CLIENT_ID: ${WIKIPEDIA_CLIENT_ID:-}
+      WIKIPEDIA_CLIENT_SECRET: ${WIKIPEDIA_CLIENT_SECRET:-}
+      OPENALEX_API_KEY: ${OPENALEX_API_KEY:-}
+    depends_on:
+      - searxng
+    restart: unless-stopped
+
+  searxng:
+    image: docker.io/searxng/searxng:2026.10.24-ef0ec03da@sha256:7c7cbe509429e82755104b2a95f52085a98633c95d53f44e4e905fa3a59f08c8
+    ports:
+      - "127.0.0.1:${SEARXNG_PORT:-8890}:8080"
+    volumes:
+      - ./server/searxng/settings.yml:/etc/searxng/settings.yml:ro
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-}
+    # SearXNG needs a secret, so one is made at the start if none is set.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        if [ -z "$$SEARXNG_SECRET" ]; then
+          export SEARXNG_SECRET="$$(/usr/local/searxng/.venv/bin/python -c 'import secrets; print(secrets.token_hex(32))')"
+        fi
+        exec /usr/local/searxng/entrypoint.sh
+    restart: unless-stopped
