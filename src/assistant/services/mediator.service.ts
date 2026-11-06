@@ -108,10 +108,7 @@ export class MediatorService implements Service {
     if (this._currentTextInput.value.trim() === "") return;
     if (this._agentsService.currentStatus.value !== AgentsService.CLOSE_STATUS) return;
 
-    this._failedAttempts = [];
-    this._searches = new Map();
-    this._reminders = 0;
-    this._askedForSourceIds = false;
+    this.resetQuestionState();
     this.__assistantService.evidenceService.clear(this._currentTextInput.value);
 
     this._agentsService.currentStatus.set(
@@ -477,7 +474,26 @@ export class MediatorService implements Service {
     this.addChat(MediatorService.MEDIATOR_AGENT_ID, []);
   }
 
+  /**
+   * Puts another conversation on screen. What was being tried for the last question is forgotten.
+   * @param chats The visible chat, the mediator's own history and the agents' conversations
+   */
+  replaceChats(chats: Map<string, META_LMMMessage[]>) {
+    this.resetQuestionState();
+    this.activeChats.set(chats);
+    if (!chats.has(MediatorService.VISIBLE_CHAT_ID)) this.addChat(MediatorService.VISIBLE_CHAT_ID, []);
+    if (!chats.has(MediatorService.MEDIATOR_AGENT_ID)) this.addChat(MediatorService.MEDIATOR_AGENT_ID, []);
+  }
+
+  private resetQuestionState() {
+    this._failedAttempts = [];
+    this._searches = new Map();
+    this._reminders = 0;
+    this._askedForSourceIds = false;
+  }
+
   clearChatData() {
+    this.resetQuestionState();
     this.activeChats.set(new Map<string, META_LMMMessage[]>());
     this.currentTextInput.set("");
     this.imageDialogImage.set("");

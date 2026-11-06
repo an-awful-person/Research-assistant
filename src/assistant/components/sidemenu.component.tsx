@@ -1,6 +1,7 @@
 import {
   Close,
   Description,
+  History,
   QuestionAnswer,
   Settings,
   Source,
@@ -11,6 +12,7 @@ import { type ReactNode } from "react";
 import type { ThemeService } from "../../services/theme.service";
 import type { AssistantService } from "../services/assistant.service";
 import { AgentsSettingsComponent } from "./agentsSettings.component";
+import { ConversationHistoryComponent } from "./conversationHistory.component";
 import { ConversationsList } from "./conversationsList.component";
 import { DocumentsComponent } from "./documents.component";
 import { SettingsComponent } from "./settings.component";
@@ -60,20 +62,23 @@ export function SideMenuComponent(props: {
           }}
         >
           <TabPanel value={value} index={0}>
+            <ConversationHistoryComponent assistantService={props.assistantService} onOpened={props.onClose} />
+          </TabPanel>
+          <TabPanel value={value} index={1}>
             <AgentsSettingsComponent
               assistantService={props.assistantService}
             />
           </TabPanel>
-          <TabPanel value={value} index={1}>
+          <TabPanel value={value} index={2}>
             <ConversationsList assistantService={props.assistantService}/>
           </TabPanel>
-          <TabPanel value={value} index={2}>
+          <TabPanel value={value} index={3}>
             <SourcesListComponent assistantService={props.assistantService} />
           </TabPanel>
-          <TabPanel value={value} index={3}>
+          <TabPanel value={value} index={4}>
             <DocumentsComponent service={props.assistantService.documentsService} />
           </TabPanel>
-          <TabPanel value={value} index={4}>
+          <TabPanel value={value} index={5}>
             <SettingsComponent
               themeService={props.themeService}
               temperatureService={props.assistantService.temperatureService}
@@ -114,8 +119,9 @@ export function SideMenuComponent(props: {
 }
 
 const TABS = [
+  { title: "Conversations", short: "History", icon: <History /> },
   { title: "Agents", short: "Agents", icon: <SupportAgent /> },
-  { title: "Agent Conversations", short: "Chats", icon: <QuestionAnswer /> },
+  { title: "Agent Conversations", short: "Steps", icon: <QuestionAnswer /> },
   { title: "Sources used in conversations", short: "Sources", icon: <Source /> },
   { title: "Documents", short: "Docs", icon: <Description /> },
   { title: "Settings", short: "Settings", icon: <Settings /> },

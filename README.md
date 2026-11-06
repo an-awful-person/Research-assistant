@@ -28,15 +28,22 @@ The language models run locally through [Ollama](https://ollama.com): your quest
 - **The mediator** is the main model. It reads your question, plans what it needs, and calls one agent at a time until it can answer. If a search finds little, it is told to try other words or another agent before giving up.
 - **Agents** each know one kind of source. Most search it and then let a model read what they found, so the mediator gets an answer with its sources instead of a pile of results. Some search agents can open a promising page themselves.
 - **Sources are numbered.** Every source an agent used gets an id, and the answer puts its number after each statement, like [1]. The code then checks each statement against the text of its source, and shows a warning when something doesn't add up.
-- **Saving:** the download button next to Send saves the conversation and its sources, or a report of its conclusions, as Markdown or PDF. See [Save a conversation](#save-a-conversation).
+- **Saving:** the download button next to Send saves the conversation and its sources, or a report in the style of a scientific paper with free photos, as PDF or Markdown. See [Save a conversation](#save-a-conversation).
 - **The research server** runs alongside the page. It passes model requests on to Ollama, runs the searches that a browser can't do itself, and opens web pages safely as plain text.
 
-The side menu, behind the button at the top right of the chat, has five tabs:
+The side menu, behind the button at the top right of the chat, has six tabs:
+- **Conversations:** start a new conversation, switch to an earlier one, or delete one or all of them. Each conversation has its own sources.
 - **Agents:** turn agents on or off, enter keys, and pick a model and temperature for each agent. Until you pick one, an agent uses the general model and temperature.
-- **Agent Conversations:** see what each agent searched, read and answered.
+- **Agent Conversations** ("Steps" on a phone): see what each agent searched, read and answered.
 - **Sources:** every source used in this session, with the passages it was cited for.
 - **Documents:** upload your own files.
 - **Settings:** the theme, from light and dark to Solarized, Nord, Dracula and Gruvbox, and the general model and temperature. The model list shows the models installed in Ollama.
+
+<img src="docs/screenshots/history.png" width="800" alt="Three conversations listed in the Conversations tab, the newest one open and highlighted, with a delete button on each, a New conversation button at the top and Delete all conversations at the bottom.">
+
+*The Conversations tab. Each conversation keeps its own answers and sources, and the button next to the menu button starts a new one.*
+
+Conversations and their sources are kept in your browser, so they're still there after a reload, until you delete them. What the agents did along the way is only kept until you reload, because it is too much to store. A conversation you open after a reload still knows its earlier questions and answers, so you can ask follow-up questions.
 
 <img src="docs/screenshots/conversation.png" width="800" alt="The conversation of the web search agent: the search it made in SearXNG and DuckDuckGo, how many results each gave, and the list of results that were given to the model.">
 
@@ -44,7 +51,7 @@ The side menu, behind the button at the top right of the chat, has five tabs:
 
 On a phone, the menu slides in from the right, and the tabs have labels:
 
-<img src="docs/screenshots/phone.png" width="560" alt="Two phone screenshots: an answer with a numbered source and the input bar with its download and send buttons, and the side menu open on the Sources tab, with labelled tabs on the right.">
+<img src="docs/screenshots/phone.png" width="560" alt="Two phone screenshots: an answer with numbered sources, the new conversation and menu buttons at the top and the input bar with its download and send buttons, and the side menu open on the Sources tab, with labelled tabs on the right.">
 
 ## The agents
 
@@ -264,7 +271,7 @@ The Documents tab takes Word (`.docx`), PDF, text and Markdown files, so the mod
 *An example memo uploaded in the Documents tab, and an answer that cites it.*
 
 - **Where they go:** files are read in your browser, and their text only goes to your language model, not to the research server.
-- **How long they stay:** for the session, so reloading the page clears them.
+- **How long they stay:** for the session, so reloading the page clears them. Conversations about them are kept, but to ask more about a document after a reload, upload it again.
 - **What can't be read:** scanned PDFs without text, old `.doc` files, and images.
 - **Long documents** are read in part: the start, and what fits the question best.
 
@@ -272,7 +279,9 @@ The Documents tab takes Word (`.docx`), PDF, text and Markdown files, so the mod
 
 - **Questions** go to your own Ollama.
 - **Searches** go to the sources themselves, directly from your browser or through the research server.
+- **Photo searches** for a report go to Wikimedia Commons, only when you save a report with photos on.
 - **Keys** you enter in the agent settings are stored only in your browser.
+- **Conversations** and their sources are stored only in your browser, until you delete them in the Conversations tab. Someone else using the same browser can see them.
 - **Pages** that are opened see a visit from your internet address.
 
 Web search, Reddit and LinkedIn read the result pages of search engines automatically, and some news sources only allow personal use. The research server only does this when it runs on your own computer, or when `PERSONAL_USE_FEEDS=true` is set, as the Docker setup does. Set `PERSONAL_USE_FEEDS=false` to turn them off, and read each source's terms before hosting this for others.
@@ -298,18 +307,24 @@ This shows where a statement came from, not that it is right. Read the passages 
 
 ## Save a conversation
 
-The download button next to Send saves the conversation, once it has an answer. It offers two documents:
-- **Conversation and sources:** your questions and the answers, with their warnings, followed by every source that was cited and the passages taken from it.
-- **Report of the conclusions:** a short report with a summary, the conclusions with their sources, and what the conversation didn't settle.
-  - **Who writes it:** your general model, which takes a moment.
-  - **Its sources:** the source numbers are checked by the code. A conclusion that cites a source that wasn't used loses that number, and a conclusion without a source is marked *(no source)*.
-  - **The source list** always comes from the conversation itself, never from the model.
+The download button next to Send saves the conversation, once it has an answer. It asks what you want to save, and as what:
 
-<img src="docs/screenshots/save.png" width="800" alt="An answer with three numbered sources, and the save menu open above the download button: the conversation and sources, or a report of the conclusions, each as Markdown or PDF.">
+- **Conversation and sources:** every question and answer, with their warnings, followed by every source that was cited and the passages taken from it.
+- **Report:** a short report in the style of a scientific paper, written in full paragraphs: an abstract, 1. Introduction, 2. Method, 3. Findings in a few subsections, 4. Discussion, 5. Conclusion, the references, and the questions asked.
+  - **Who writes it:** your general model writes the text, which takes a moment.
+  - **What the code writes:** the Method section, which says how many questions were asked, which model answered and which kinds of sources were cited, and the references. They come from the conversation itself, never from the model, so they can't be made up.
+  - **Its sources:** statements cite their source by number, like [1], and the code checks every number. A number of a source that wasn't used is removed, and a paragraph in the findings or the conclusion without any source is marked *(no source)*.
+  - **Photos:** with *Add photos from Wikimedia Commons* on, the model suggests what a photo could show, and the assistant looks for it on [Wikimedia Commons](https://commons.wikimedia.org), which only has freely licensed and public domain files. A photo is only used when the model, reading its title and description, says it shows the subject, so some reports get none. Each photo is credited with its author and licence, and links to its page. The search words go to Wikimedia.
 
-*The download button next to Send opens the save menu.*
+<img src="docs/screenshots/save.png" width="800" alt="The Save conversation window over an answer about the De Zeven Provinciën-class frigates: a choice between Conversation and sources, and Report, a choice between PDF and Markdown, and a switch to add photos from Wikimedia Commons.">
 
-Each comes as a Markdown file (`.md`), or as a PDF. For the PDF, the browser's print dialog opens: choose **Save as PDF** as the printer. Each answer numbers its sources from [1], so a saved document numbers them again, once for the whole conversation.
+Choose **PDF** for a document to read, print or share, or **Markdown** for plain text to edit or paste into notes. Both are saved in your downloads, on a phone too. A PDF has its photos inside, so it can be read offline; a Markdown file links to them.
+
+<img src="docs/screenshots/report.png" width="420" alt="The first page of a PDF report on the De Zeven Provinciën-class frigates: a title, a photo of HNLMS De Zeven Provinciën at sea credited to the US Navy, public domain, via Wikimedia Commons, then the Abstract, 1. Introduction and the start of 2. Method, with source numbers in the text.">
+
+*The first page of a real report. The photo of the frigate came from Wikimedia Commons, with its credit underneath. Which photos are found differs from one report to the next, and some reports get none.*
+
+Each answer numbers its sources from [1], so a saved document numbers them again, once for the whole conversation.
 
 ## Troubleshooting
 

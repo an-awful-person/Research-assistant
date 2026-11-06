@@ -5,6 +5,7 @@ import { ReactiveMap } from "../../services/reactiveMap.service";
 import { StorageService } from "../../services/storage.service";
 import type { ReferenceModel } from "../model/reference.model";
 import { DocumentsService } from "./documents.service";
+import { ConversationsService } from "./conversations.service";
 import { EvidenceService } from "./evidence.service";
 import { ExportService } from "./export.service";
 import { LLMApiService } from "./llmApi.service";
@@ -33,6 +34,7 @@ export class AssistantService implements Service {
     private _sharedKeysService:SharedKeysService;
     private _modelService:ModelService;
     private _exportService:ExportService;
+    private _conversationsService:ConversationsService;
 
     private _services:Service[] = [];
 
@@ -55,6 +57,7 @@ export class AssistantService implements Service {
         this._evidenceService = new EvidenceService(this._references);
         this._webSearchService = new WebSearchService(this._apiService, this._storageService);
         this._exportService = new ExportService(this);
+        this._conversationsService = new ConversationsService(this);
 
         this._services.push(this._LLMApiService);
         this._services.push(this._globalChatService);
@@ -67,6 +70,8 @@ export class AssistantService implements Service {
         this._services.push(this._documentsService);
         this._services.push(this._sharedKeysService);
         this._services.push(this._exportService);
+        // Last: it restores the conversation into the chats that the mediator sets up.
+        this._services.push(this._conversationsService);
     }
 
     init(){
@@ -111,6 +116,10 @@ export class AssistantService implements Service {
 
     get modelService():ModelService{
         return this._modelService;
+    }
+
+    get conversationsService():ConversationsService{
+        return this._conversationsService;
     }
 
     get exportService():ExportService{

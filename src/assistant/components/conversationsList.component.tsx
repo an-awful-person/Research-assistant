@@ -1,5 +1,5 @@
 import { Chat, Delete } from "@mui/icons-material";
-import { Box, Divider, IconButton, List, ListItem, ListItemText, Tooltip } from "@mui/material";
+import { Box, Divider, IconButton, List, ListItem, ListItemText, Tooltip, Typography } from "@mui/material";
 import { useState, type ReactNode } from "react";
 import { useReactive } from "../../services/reactive.service";
 import { MESSAGE_ROLES } from "../constants/llm.constants";
@@ -11,7 +11,8 @@ import { ConversationDialogComponent } from "./conversationDialog.component";
 const MAX_SEARCH_LENGTH = 120;
 
 function agentConversations(chats: Map<string, META_LMMMessage[]>): [string, META_LMMMessage[]][] {
-  return Array.from(chats.entries()).filter(([name]) => name !== MediatorService.VISIBLE_CHAT_ID);
+  // The mediator's history after a reload is rebuilt from the answers, so only one with real steps is shown.
+  return Array.from(chats.entries()).filter(([name, messages]) => name !== MediatorService.VISIBLE_CHAT_ID && messages.length > 0);
 }
 
 /**
@@ -39,9 +40,21 @@ export function ConversationsList(props: {
   useReactive(mediatorChatService.activeChats, (value) => {
     setConversations(agentConversations(value));
   });
+  const [restored, setRestored] = useState<boolean>(props.assistantService.conversationsService.restored.value);
+  useReactive(props.assistantService.conversationsService.restored, setRestored);
 
   return (
     <Box>
+      {restored ? (
+        <Typography variant="body2" sx={{ padding: "1em", color: "text.secondary", textAlign: "left" }} data-testid="steps-restored">
+          This conversation was loaded after the page was reloaded. What the agents did isn't kept after a reload, only
+          the questions, answers and sources. New questions show their steps here again.
+        </Typography>
+      ) : conversations.length === 0 ? (
+        <Typography variant="body2" sx={{ padding: "1em", color: "text.secondary", textAlign: "left" }} data-testid="steps-empty">
+          Nothing yet. What the agents search, read and answer for your questions shows here.
+        </Typography>
+      ) : null}
       <List sx={{ overflowY: "auto" }}>
         {conversations.map(([name, messages], index) => {
           return (

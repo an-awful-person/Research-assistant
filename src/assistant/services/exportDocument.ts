@@ -17,9 +17,34 @@ export type CollectedSources = {
 /** What the model gives back for a report. The sources are numbers from the shared list. */
 export type ReportResponse = {
   title: string;
-  summary: string;
-  conclusions: { statement: string; sources: number[] }[];
-  openQuestions: string[];
+  abstract: string;
+  introduction: string;
+  /** Subsections of the findings, each in paragraphs that cite their sources inline, like "in 2002 [1]". */
+  findings: { heading: string; paragraphs: string[] }[];
+  discussion: string;
+  conclusion: string;
+};
+
+/** A freely licensed picture from Wikimedia Commons, with what its licence asks to be credited. */
+export type CommonsImage = {
+  title: string;
+  description: string;
+  pageUrl: string;
+  thumbUrl: string;
+  width: number;
+  height: number;
+  artist: string;
+  license: string;
+  licenseUrl: string;
+};
+
+/** A picture placed in a report. */
+export type PlacedImage = {
+  image: CommonsImage;
+  /** The number of the findings subsection it follows, or 0 for under the title. */
+  section: number;
+  /** What the document shows: the image's own address, or a data URL inside a PDF. */
+  src: string;
 };
 
 const MAX_QUOTES = 3;
@@ -135,35 +160,155 @@ export function reportInput(messages: META_LMMMessage[]): string {
   return `CONVERSATION:\n${conversation}\n\nSOURCES:\n${sources === "" ? "(none)" : sources}`;
 }
 
+/** Markdown can't have brackets or new lines in a picture's description or caption link text. */
+function markdownText(text: string): string {
+  return oneLine(text).replace(/[[\]]/g, "");
+}
+
 /**
- * The report, built from what the model wrote. Source numbers the conversation doesn't have are dropped, and the
- * source list comes from the conversation, never from the model.
+ * A picture with the credit its licence asks for: the author, the licence, and where it comes from.
  */
-export function reportMarkdown(messages: META_LMMMessage[], response: ReportResponse, date: string, model: string): string {
+export function imageMarkdown(placed: PlacedImage): string {
+  const { image } = placed;
+  // Descriptions on Commons can be long and about something else in the photo, so the caption is the file's title.
+  const alt = shorten(image.description !== "" ? image.description : image.title, 150);
+  const license = image.licenseUrl !== "" ? `[${markdownText(image.license)}](<${image.licenseUrl}>)` : markdownText(image.license);
+  return [
+    `![${markdownText(alt)}](<${placed.src}>)`,
+    `*${markdownText(image.title)}.* Photo: [${markdownText(image.artist)}](<${image.pageUrl}>), ${license}, via Wikimedia Commons.`,
+  ].join("\n\n");
+}
+
+/** Cuts text at a word, with an ellipsis, if it is longer than the limit. */
+function shorten(text: string, limit: number): string {
+  const line = oneLine(text);
+  if (line.length <= limit) return line;
+  const cut = line.slice(0, limit);
+  return `${cut.slice(0, cut.lastIndexOf(" ") > limit / 2 ? cut.lastIndexOf(" ") : limit).replace(/[,;:.\s]+$/, "")}…`;
+}
+
+/** Paragraphs as the model wrote them: split on blank lines, and lists turned into sentences of their own. */
+function paragraphsOf(text: string | undefined): string[] {
+  return (text ?? "")
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.replace(/^\s*[-*•]\s+/gm, "").replace(/\s+/g, " ").trim())
+    .filter((paragraph) => paragraph !== "");
+}
+
+/**
+ * Keeps the citations of known sources, like [2] or [1][3], and drops the rest, like [9] or [S1].
+ * @returns The text, and the source numbers it still cites
+ */
+export function checkCitations(text: string, known: Set<number>): { text: string; numbers: number[] } {
+  const numbers = new Set<number>();
+  const checked = text
+    .replace(/\[([^\]]*)\]/g, (marker, inside: string) => {
+      const parts = inside.split(/[,;]\s*/).map((part) => part.trim());
+      if (!parts.every((part) => /^S?\d+$/i.test(part))) {
+        return marker;
+      }
+      const kept = parts.filter((part) => /^\d+$/.test(part) && known.has(Number(part))).map(Number);
+      kept.forEach((number) => numbers.add(number));
+      return kept.map((number) => `[${number}]`).join("");
+    })
+    .replace(/\s+([.,;:])/g, "$1")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return { text: checked, numbers: [...numbers].sort((a, b) => a - b) };
+}
+
+/** The kind of a source, from its label: "Wikipedia: Radar" is Wikipedia. */
+function kindOf(source: ExportSource): string {
+  const colon = source.source.indexOf(":");
+  return colon > 0 ? source.source.slice(0, colon).trim() : "Other";
+}
+
+function count(number: number, word: string): string {
+  return `${number} ${word}${number === 1 ? "" : "s"}`;
+}
+
+/** Lists like "a, b and c". */
+function listing(items: string[]): string {
+  return items.length <= 1 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
+
+/**
+ * How the information was gathered, written from the conversation itself, so the model can't make it up.
+ */
+export function methodSection(messages: META_LMMMessage[], sources: ExportSource[], model: string): string {
+  const questions = messages.filter((message) => message.role === "user").length;
+  const kinds = new Map<string, number>();
+  sources.forEach((source) => kinds.set(kindOf(source), (kinds.get(kindOf(source)) ?? 0) + 1));
+  const consulted =
+    sources.length === 0
+      ? "No source could be traced in its answers, so everything below may come from the model's own knowledge."
+      : `The answers cite ${count(sources.length, "source")}: ${listing([...kinds.entries()].map(([kind, number]) => `${kind} (${number})`))}.`;
+  return [
+    `This report is based on a conversation of ${count(questions, "question")} with a research assistant, which uses the language model ${model} and searches sources through its agents. ${consulted}`,
+    "Each statement in the findings and the conclusion carries the number of its source in the references. The code checks these numbers: numbers of sources that weren't used are removed, and paragraphs marked *(no source)* could not be traced to a source and may come from the model's own knowledge.",
+  ].join("\n\n");
+}
+
+/**
+ * The report, in the form of a scientific paper, built from what the model wrote. Source numbers the conversation
+ * doesn't have are dropped, and the method and the references come from the conversation, never from the model.
+ */
+export function reportMarkdown(
+  messages: META_LMMMessage[],
+  response: ReportResponse,
+  date: string,
+  model: string,
+  images: PlacedImage[] = [],
+): string {
   const { sources } = collectSources(messages);
   const known = new Set(sources.map((source) => source.number));
   const cited = new Set<number>();
 
-  const conclusions = (response.conclusions ?? [])
-    .filter((conclusion) => oneLine(conclusion.statement ?? "") !== "")
-    .map((conclusion) => {
-      const numbers = [...new Set((conclusion.sources ?? []).filter((number) => known.has(number)))].sort((a, b) => a - b);
-      numbers.forEach((number) => cited.add(number));
-      const marks = numbers.length > 0 ? ` ${numbers.map((number) => `[${number}]`).join("")}` : " *(no source)*";
-      return `- ${oneLine(conclusion.statement)}${marks}`;
+  /** Paragraphs that state facts: their citations are checked, and those without one are marked. */
+  const sourced = (text: string | undefined): string[] =>
+    paragraphsOf(text).map((paragraph) => {
+      const checked = checkCitations(paragraph, known);
+      checked.numbers.forEach((number) => cited.add(number));
+      return checked.numbers.length > 0 ? checked.text : `${checked.text} *(no source)*`;
     });
-  const openQuestions = (response.openQuestions ?? []).map(oneLine).filter((question) => question !== "");
-  const questions = messages.filter((message) => message.role === "user").map((message) => `- ${oneLine(message.content)}`);
+  /** Paragraphs that sum up, frame or weigh the findings: citations are checked, but none is needed. */
+  const framing = (text: string | undefined): string[] =>
+    paragraphsOf(text).map((paragraph) => {
+      const checked = checkCitations(paragraph, known);
+      checked.numbers.forEach((number) => cited.add(number));
+      return checked.text;
+    });
+
+  const findings = (response.findings ?? []).filter(
+    (finding) => typeof finding?.heading === "string" && Array.isArray(finding.paragraphs) && finding.paragraphs.some((paragraph) => typeof paragraph === "string" && paragraph.trim() !== ""),
+  );
+  const findingsText = findings.map((finding, index) => {
+    const paragraphs = sourced(finding.paragraphs.filter((paragraph) => typeof paragraph === "string").join("\n\n"));
+    const pictures = images.filter((placed) => placed.section === index + 1).map(imageMarkdown);
+    return [`### 3.${index + 1} ${oneLine(finding.heading) || "Findings"}`, ...paragraphs, ...pictures].join("\n\n");
+  });
+  const top = images.filter((placed) => placed.section < 1 || placed.section > findings.length).map(imageMarkdown);
+
+  // The abstract sums up the sections below it, which carry the sources, so it isn't marked.
+  const abstract = framing(response.abstract);
+  const introduction = framing(response.introduction);
+  const discussion = framing(response.discussion);
+  const conclusion = sourced(response.conclusion);
+  const section = (heading: string, paragraphs: string[], empty: string) =>
+    `## ${heading}\n\n${paragraphs.length > 0 ? paragraphs.join("\n\n") : `*${empty}*`}\n`;
+  const questions = messages.filter((message) => message.role === "user").map((message, index) => `${index + 1}. ${oneLine(message.content)}`);
 
   const parts = [
-    `# ${oneLine(response.title ?? "") || "Research report"}\n\n${date} · written by ${model} from the conversation. Check the sources before relying on it.\n`,
-    `## Summary\n\n${(response.summary ?? "").trim() || "*No summary was written.*"}\n`,
-    `## Conclusions\n\n${conclusions.length > 0 ? conclusions.join("\n") : "*No conclusions were drawn.*"}\n`,
+    `# ${oneLine(response.title ?? "") || "Research report"}\n\n${date} · written by ${model} from a conversation with the research assistant. Check the sources before relying on it.\n`,
+    ...(top.length > 0 ? [`${top.join("\n\n")}\n`] : []),
+    section("Abstract", abstract, "No abstract was written."),
+    section("1. Introduction", introduction, "No introduction was written."),
+    `## 2. Method\n\n${methodSection(messages, sources, model)}\n`,
+    `## 3. Findings\n\n${findingsText.length > 0 ? findingsText.join("\n\n") : "*No findings were written.*"}\n`,
+    section("4. Discussion", discussion, "No discussion was written."),
+    section("5. Conclusion", conclusion, "No conclusion was written."),
+    `## References\n\n${sourcesMarkdown(sources.filter((source) => cited.has(source.number)))}`,
+    `## Appendix: questions asked\n\n${questions.join("\n")}\n`,
   ];
-  if (openQuestions.length > 0) {
-    parts.push(`## Open questions\n\n${openQuestions.map((question) => `- ${question}`).join("\n")}\n`);
-  }
-  parts.push(`## Sources\n\n${sourcesMarkdown(sources.filter((source) => cited.has(source.number)))}`);
-  parts.push(`## Questions asked\n\n${questions.join("\n")}\n`);
   return parts.join("\n");
 }
