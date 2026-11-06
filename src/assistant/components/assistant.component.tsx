@@ -1,4 +1,4 @@
-import { Box, Drawer, useMediaQuery, useTheme } from "@mui/material";
+import { Box, Drawer, SwipeableDrawer, useMediaQuery, useTheme } from "@mui/material";
 import { type JSX, useState } from "react";
 import type { ThemeService } from "../../services/theme.service";
 import { AssistantService } from "../services/assistant.service";
@@ -9,6 +9,9 @@ import { SideMenuComponent } from "./sidemenu.component";
 const MENU_WIDTH = "min(30vw, 480px)";
 /** Width of the side menu when it slides over the chat on narrow screens. */
 const NARROW_MENU_WIDTH = "min(420px, 90vw)";
+
+// iOS has its own swipe gestures, which the drawer's animations get in the way of.
+const IS_IOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent);
 
 export function AssistantComponent(props: {
   assistantService: AssistantService;
@@ -31,11 +34,30 @@ export function AssistantComponent(props: {
       themeService={props.themeService}
       tab={tab}
       onTabChange={setTab}
+      onClose={isNarrow ? () => setNarrowMenuOpen(false) : undefined}
     />
   );
 
   return (
-    <Box sx={{ position: "absolute", inset: 0, display: "flex", overflow: "hidden" }}>
+    <Box
+      sx={{
+        // The visible part of the screen, which on phones changes with the address bar and the keyboard.
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        "@supports (height: 100dvh)": { height: "100dvh" },
+        boxSizing: "border-box",
+        // Keeps everything clear of notches and the home bar.
+        paddingTop: "env(safe-area-inset-top)",
+        paddingRight: "env(safe-area-inset-right)",
+        paddingBottom: "env(safe-area-inset-bottom)",
+        paddingLeft: "env(safe-area-inset-left)",
+        display: "flex",
+        overflow: "hidden",
+      }}
+    >
       <ChatComponent
         assistantService={props.assistantService}
         menuOpen={menuOpen}
@@ -44,15 +66,19 @@ export function AssistantComponent(props: {
       />
 
       {isNarrow ? (
-        <Drawer
-          variant="temporary"
+        // Swiping it to the right closes it. Swiping to open is off, so it can't get in the way of going back.
+        <SwipeableDrawer
           anchor="right"
           open={narrowMenuOpen}
           onClose={() => setNarrowMenuOpen(false)}
-          slotProps={{ paper: { sx: { width: NARROW_MENU_WIDTH } } }}
+          onOpen={() => setNarrowMenuOpen(true)}
+          disableSwipeToOpen
+          disableBackdropTransition={!IS_IOS}
+          disableDiscovery={IS_IOS}
+          slotProps={{ paper: { sx: { width: NARROW_MENU_WIDTH, paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" } } }}
         >
           {menu}
-        </Drawer>
+        </SwipeableDrawer>
       ) : (
         <Drawer
           variant="persistent"

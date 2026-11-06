@@ -1,5 +1,5 @@
 import { ArrowUpward } from "@mui/icons-material";
-import { Box, IconButton, InputBase, Paper, Tooltip, Typography } from "@mui/material";
+import { Box, IconButton, InputBase, Paper, Tooltip, Typography, useMediaQuery } from "@mui/material";
 import { type JSX, type KeyboardEvent, useState } from "react";
 import { useReactive } from "../../services/reactive.service";
 import { AgentsService } from "../services/agents.service";
@@ -20,6 +20,8 @@ export function ChatInputComponent(props: {
   useReactive(props.chatService.currentTextInput, setChatInput);
   useReactive(agentsService.currentStatus, setStatus);
 
+  // Phones held sideways have little height, so the box grows less.
+  const isShort = useMediaQuery("(max-height: 500px)");
   const busy = status !== AgentsService.CLOSE_STATUS;
   const canSend = !busy && (chatInput ?? "").trim() !== "";
 
@@ -59,7 +61,7 @@ export function ChatInputComponent(props: {
           placeholder="Ask a research question…"
           multiline
           minRows={1}
-          maxRows={8}
+          maxRows={isShort ? 4 : 8}
           fullWidth
           inputProps={{ "aria-label": "Your question" }}
           sx={{ alignSelf: "center", paddingY: "0.35em", lineHeight: 1.5 }}
@@ -72,12 +74,13 @@ export function ChatInputComponent(props: {
               onClick={send}
               disabled={!canSend}
               sx={{
+                width: 40,
+                height: 40,
                 bgcolor: "primary.main",
                 color: "primary.contrastText",
                 "&:hover": { bgcolor: "primary.dark" },
                 "&.Mui-disabled": { bgcolor: "action.disabledBackground", color: "action.disabled" },
               }}
-              size="small"
             >
               <ArrowUpward fontSize="small" />
             </IconButton>

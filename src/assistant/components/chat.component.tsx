@@ -23,36 +23,56 @@ export function ChatComponent(props: {
   );
   useReactive(chatService.activeChats, setActiveChats);
 
-  const gap = props.compact ? "0.5em" : "1em";
   const menuLabel = props.menuOpen ? "Hide menu" : "Show menu";
+  const menuButton = (
+    <Tooltip title={menuLabel}>
+      <IconButton
+        onClick={props.onToggleMenu}
+        aria-label={menuLabel}
+        aria-expanded={props.menuOpen}
+        sx={{
+          width: 44,
+          height: 44,
+          // On phones it floats over the messages, so it needs its own background.
+          ...(props.compact ? { bgcolor: "background.paper", boxShadow: 2, "&:hover": { bgcolor: "background.paper" } } : {}),
+        }}
+      >
+        {props.menuOpen ? <MenuOpen sx={{ transform: "scaleX(-1)" }} /> : <Menu />}
+      </IconButton>
+    </Tooltip>
+  );
 
   return (
     <Card
       sx={{
         flex: "1 1 auto",
         minWidth: 0,
-        margin: gap,
+        // Phones keep every bit of space for the conversation.
+        margin: props.compact ? "0.25em" : "1em",
         display: "flex",
         flexDirection: "column",
+        position: "relative",
       }}
     >
-      <Box sx={{ display: "flex", justifyContent: "flex-end", padding: `0.25em ${gap} 0 ${gap}` }}>
-        <Tooltip title={menuLabel}>
-          <IconButton onClick={props.onToggleMenu} aria-label={menuLabel} aria-expanded={props.menuOpen} size="small">
-            {props.menuOpen ? <MenuOpen sx={{ transform: "scaleX(-1)" }} /> : <Menu />}
-          </IconButton>
-        </Tooltip>
-      </Box>
+      {props.compact ? (
+        <Box sx={{ position: "absolute", top: "0.5em", right: "0.5em", zIndex: 2 }}>{menuButton}</Box>
+      ) : (
+        <Box sx={{ display: "flex", justifyContent: "flex-end", padding: "0.25em 1em 0 1em" }}>{menuButton}</Box>
+      )}
 
       <Box
-        sx={{
-          flex: "1 1 auto",
-          overflowY: "auto",
-          padding: gap,
-          outline: (theme) => `1px solid ${theme.palette.divider}`,
-          margin: `0.25em ${gap} 0 ${gap}`,
-          borderRadius: "0.5em",
-        }}
+        sx={
+          props.compact
+            ? { flex: "1 1 auto", overflowY: "auto", padding: "0.5em 0.75em" }
+            : {
+                flex: "1 1 auto",
+                overflowY: "auto",
+                padding: "1em",
+                outline: (theme) => `1px solid ${theme.palette.divider}`,
+                margin: "0.25em 1em 0 1em",
+                borderRadius: "0.5em",
+              }
+        }
       >
         <ChatMessagesComponent
           messages={activeChats.get(MediatorService.VISIBLE_CHAT_ID) ?? []}
@@ -64,7 +84,7 @@ export function ChatComponent(props: {
         <ChatStatusComponent assistantService={props.assistantService} />
       </Box>
 
-      <Box sx={{ flexGrow: 0, padding: gap }}>
+      <Box sx={{ flexGrow: 0, padding: props.compact ? "0.5em" : "1em" }}>
         <ChatInputComponent chatService={props.assistantService.mediatorService} showHint={!props.compact} />
       </Box>
     </Card>

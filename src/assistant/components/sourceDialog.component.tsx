@@ -36,7 +36,7 @@ export function SourceDialogComponent(props: {
           </IconButton>
         </Tooltip>
       </DialogTitle>
-      <DialogContent dividers data-testid="source-dialog-content" sx={{ textAlign: "left" }}>
+      <DialogContent dividers data-testid="source-dialog-content" sx={{ textAlign: "left", overflowWrap: "anywhere" }}>
         {reference === undefined ? null : (
           <>
             <Typography variant="body2" sx={{ color: "text.secondary" }}>

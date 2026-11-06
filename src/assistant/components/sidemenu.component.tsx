@@ -1,11 +1,12 @@
 import {
+  Close,
   Description,
   QuestionAnswer,
   Settings,
   Source,
   SupportAgent,
 } from "@mui/icons-material";
-import { Box, Card, Tab, Tabs, Tooltip } from "@mui/material";
+import { Box, Card, IconButton, Tab, Tabs, Tooltip } from "@mui/material";
 import { type ReactNode } from "react";
 import type { ThemeService } from "../../services/theme.service";
 import type { AssistantService } from "../services/assistant.service";
@@ -21,7 +22,10 @@ export function SideMenuComponent(props: {
   /** The tab shown, kept by the parent so it survives closing the menu. */
   tab: number;
   onTabChange: (tab: number) => void;
+  /** Closes the menu. Only given where it slides over the chat, on narrow screens, which also get tab labels. */
+  onClose?: () => void;
 }): ReactNode {
+  const isNarrow = props.onClose !== undefined;
   const value = props.tab;
 
   const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
@@ -76,52 +80,45 @@ export function SideMenuComponent(props: {
             />
           </TabPanel>
         </Box>
-        <Tabs
-          orientation="vertical"
-          sx={{ width: "4em", flexShrink: 0 }}
-          value={value}
-          onChange={handleChange}
-        >
-          <Tooltip title="Agents" placement="left">
-            <Tab
-              icon={<SupportAgent />}
-              sx={{ textAlign: "center", maxWidth: "4em", minWidth: 0 }}
-              {...a11yProps(0)}
-            />
-          </Tooltip>
-          <Tooltip title="Agent Conversations" placement="left">
-            <Tab
-              icon={<QuestionAnswer />}
-              sx={{ textAlign: "center", maxWidth: "4em", minWidth: 0 }}
-              {...a11yProps(1)}
-            />
-          </Tooltip>
-          <Tooltip title="Sources used in conversations" placement="left">
-            <Tab
-              icon={<Source />}
-              sx={{ textAlign: "center", maxWidth: "4em", minWidth: 0 }}
-              {...a11yProps(2)}
-            />
-          </Tooltip>
-          <Tooltip title="Documents" placement="left">
-            <Tab
-              icon={<Description />}
-              sx={{ textAlign: "center", maxWidth: "4em", minWidth: 0 }}
-              {...a11yProps(3)}
-            />
-          </Tooltip>
-          <Tooltip title="Settings" placement="left">
-            <Tab
-              icon={<Settings />}
-              sx={{ textAlign: "center", maxWidth: "4em", minWidth: 0 }}
-              {...a11yProps(4)}
-            />
-          </Tooltip>
-        </Tabs>
+        {/* In pixels: a width in em would follow each element's own font size, which put the tabs off centre. */}
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "stretch", flexShrink: 0, width: isNarrow ? 72 : 64 }}>
+          {isNarrow ? (
+            <IconButton onClick={props.onClose} aria-label="Close menu" sx={{ alignSelf: "center", margin: "0.25em 0", width: 44, height: 44 }}>
+              <Close />
+            </IconButton>
+          ) : null}
+          <Tabs
+            orientation="vertical"
+            sx={{ width: "100%" }}
+            value={value}
+            onChange={handleChange}
+          >
+            {TABS.map((tab, index) => (
+              <Tooltip key={tab.short} title={tab.title} placement="left">
+                <Tab
+                  icon={tab.icon}
+                  // Phones can't hover for the tooltip, so they get a short label.
+                  label={isNarrow ? tab.short : undefined}
+                  aria-label={tab.title}
+                  sx={{ width: "100%", maxWidth: "none", minWidth: 0, minHeight: isNarrow ? 64 : 48, paddingX: 0.5, fontSize: "0.7rem", textTransform: "none" }}
+                  {...a11yProps(index)}
+                />
+              </Tooltip>
+            ))}
+          </Tabs>
+        </Box>
       </Box>
     </Card>
   );
 }
+
+const TABS = [
+  { title: "Agents", short: "Agents", icon: <SupportAgent /> },
+  { title: "Agent Conversations", short: "Chats", icon: <QuestionAnswer /> },
+  { title: "Sources used in conversations", short: "Sources", icon: <Source /> },
+  { title: "Documents", short: "Docs", icon: <Description /> },
+  { title: "Settings", short: "Settings", icon: <Settings /> },
+];
 
 function TabPanel(props: {
   children?: ReactNode;

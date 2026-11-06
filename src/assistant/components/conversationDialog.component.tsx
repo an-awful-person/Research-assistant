@@ -31,7 +31,7 @@ export function ConversationDialogComponent(props: {
           </IconButton>
         </Tooltip>
       </DialogTitle>
-      <DialogContent dividers data-testid="conversation-dialog-content">
+      <DialogContent dividers data-testid="conversation-dialog-content" sx={{ overflowWrap: "anywhere" }}>
         {props.chatId !== undefined ? (
           <ChatMessagesComponent
             messages={activeChats.get(props.chatId) ?? []}

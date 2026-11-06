@@ -1,13 +1,26 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { Delete, Edit } from "@mui/icons-material";
-import { Box, Card, CardContent, Chip, Divider, IconButton, Link, TextField, Tooltip, Typography } from "@mui/material";
-import { type JSX, useEffect, useRef, useState } from "react";
+import { Box, Card, CardContent, Chip, Divider, IconButton, TextField, Tooltip, Typography } from "@mui/material";
+import { type JSX, type ReactNode, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { MESSAGE_ROLES } from "../constants/llm.constants";
 import { type META_LMMMessage } from "../model/llm.model";
 import type { EvidenceModel, SourceWarning } from "../model/reference.model";
-import { Utils } from "../../services/utils.service";
 import { MediatorService } from "../services/mediator.service";
+import { SourceDialogComponent } from "./sourceDialog.component";
+
+/** Phones can't hover, so a tap shows the explanation and keeps it up long enough to read. */
+const TOUCH_TOOLTIP = { enterTouchDelay: 0, leaveTouchDelay: 6000 };
+
+/** Where markdown from models and search results can be wider than a phone, it scrolls inside its own box. */
+const MARKDOWN_STYLE = {
+  overflowWrap: "anywhere",
+  "& pre": { overflowX: "auto", maxWidth: "100%" },
+  "& .table-scroll": { overflowX: "auto", maxWidth: "100%", margin: "0.5em 0" },
+  "& table": { borderCollapse: "collapse", overflowWrap: "normal" },
+  "& th, & td": { border: 1, borderColor: "divider", padding: "0.25em 0.5em", textAlign: "left", verticalAlign: "top" },
+} as const;
 
 export function ChatMessagesComponent<T extends MediatorService>(props: {
   messages: META_LMMMessage[];
@@ -18,6 +31,15 @@ export function ChatMessagesComponent<T extends MediatorService>(props: {
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const [messages, setMessages] = useState<META_LMMMessage[]>(props.messages);
+  // Which source is shown in the dialog: only what is on screen, so it's kept here.
+  const [openReferenceId, setOpenReferenceId] = useState<string | undefined>(undefined);
+  const references = props.chatService.assistantService.references;
+  const openSource = (citation: EvidenceModel | undefined) => {
+    const id = citation?.items[0]?.referenceId;
+    if (id !== undefined && references.get(id) !== undefined) {
+      setOpenReferenceId(id);
+    }
+  };
 
   useEffect(() => {
     setMessages(props.messages);
@@ -35,7 +57,7 @@ export function ChatMessagesComponent<T extends MediatorService>(props: {
     const text = props.message.content;
 
     return (
-      <Box sx={{textAlign:'left'}}>
+      <Box sx={{ textAlign: "left", ...MARKDOWN_STYLE }}>
         {props.message.type === "json" ? (
           <pre style={{ whiteSpace: "pre-wrap" }}>
             <code>{text}</code>
@@ -44,14 +66,21 @@ export function ChatMessagesComponent<T extends MediatorService>(props: {
           <div>
             {/* Text can come from search results, which shouldn't be able to make the browser load something. */}
             <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
               disallowedElements={["img"]}
               unwrapDisallowed
               components={{
+                table: ({ children }) => (
+                  <div className="table-scroll">
+                    <table>{children}</table>
+                  </div>
+                ),
                 // Conversations are only kept in memory, so links shouldn't navigate away from them.
                 a: ({ href, children }) => {
                   const number = href?.startsWith("#source-") ? Number(href.slice("#source-".length)) : undefined;
                   if (number !== undefined) {
-                    return <SourceNumber number={number} citation={props.message.citations?.find((citation) => citation.number === number)} />;
+                    const citation = props.message.citations?.find((candidate) => candidate.number === number);
+                    return <SourceNumber number={number} citation={citation} onOpen={() => openSource(citation)} />;
                   }
                   return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
                 },
@@ -82,7 +111,7 @@ export function ChatMessagesComponent<T extends MediatorService>(props: {
       >
         <CardContent sx={{ padding: 0, "&:last-child": { paddingBottom: 0 } }}>
           <Box
-            sx={{ display: "flex" }}
+            sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", columnGap: "0.5em", rowGap: "0.25em", paddingBottom: "0.25em" }}
             onMouseOver={() => {
               setButtonsVisible(true);
             }}
@@ -107,6 +136,7 @@ export function ChatMessagesComponent<T extends MediatorService>(props: {
             </Typography>
             {props.message.failedAttempts?.length ? (
               <Tooltip
+                {...TOUCH_TOOLTIP}
                 title={props.message.failedAttempts.map((reason, index) => (
                   <div key={index}>{index + 1}. {reason.split(/(?<=\.)\s/)[0]}</div>
                 ))}
@@ -116,42 +146,19 @@ export function ChatMessagesComponent<T extends MediatorService>(props: {
                   color="warning"
                   variant="outlined"
                   size="small"
-                  sx={{ margin: "0 0.5em" }}
                   data-testid="failed-attempts"
                 />
               </Tooltip>
             ) : null}
-            <Box>
               {
                 props.message.citations?.map(citation => {
                   const hasOneLink = citation.items.length === 1;
                   return (
-                    <Tooltip
-                      key={citation.source}
-                      title={
-                        <Box sx={{ maxHeight: "20em", overflowY: "auto" }}>
-                          {citation.items.some((item) => item.automatic) ? <AutomaticNote /> : null}
-                          {citation.items.map((item) => (
-                            <Box key={item.url} sx={{ marginBottom: "0.5em" }}>
-                              {item.quotes.map((quote, index) => (
-                                <div key={index}>"{quote}"</div>
-                              ))}
-                              {hasOneLink || !Utils.isWebLink(item.url) ? null : (
-                                <Link href={item.url} target="_blank" rel="noopener noreferrer" color="inherit" data-testid="citation-link">
-                                  Open this source
-                                </Link>
-                              )}
-                            </Box>
-                          ))}
-                        </Box>
-                      }
-                    >
+                    <Tooltip key={`${citation.number ?? ""}${citation.source}`} title={<CitationPassages citation={citation} />}>
                       <Chip
                         label={`${citation.number === undefined ? "" : `${citation.number} `}${hasOneLink ? citation.source : `${citation.source} (${citation.items.length})`}`}
-                        {...(hasOneLink && Utils.isWebLink(citation.items[0].url)
-                          ? { component: "a", href: citation.items[0].url, target: "_blank", rel: "noopener noreferrer", clickable: true }
-                          : {})}
-                        sx={{margin:'0 0.5em', marginTop:'-1em'}}
+                        onClick={() => openSource(citation)}
+                        sx={{ maxWidth: "100%" }}
                         size={'small'}
                         data-testid="citation"
                       />
@@ -163,24 +170,21 @@ export function ChatMessagesComponent<T extends MediatorService>(props: {
                 <SourceWarningChip key={warning.kind} warning={warning} />
               ))}
               {props.message.unverified && props.message.sourceWarnings === undefined ? (
-                <Tooltip title="This answer could not be traced back to a source that was read. It may come from the model's own knowledge, so check it before relying on it.">
+                <Tooltip {...TOUCH_TOOLTIP} title="This answer could not be traced back to a source that was read. It may come from the model's own knowledge, so check it before relying on it.">
                   <Chip
                     label="No verified source"
                     color="warning"
                     variant="outlined"
-                    sx={{margin:'0 0.5em', marginTop:'-1em'}}
                     size={'small'}
                     data-testid="unverified-source"
                   />
                 </Tooltip>
               ) : null}
-            </Box>
             {!props.disableEditting ? (
-              <Box sx={{ visibility: buttonsVisible ? "visible" : "hidden" }}>
+              <Box sx={{ visibility: buttonsVisible ? "visible" : "hidden", marginLeft: "auto" }}>
                 <IconButton
                   size={"small"}
                   aria-label="Edit message"
-                  sx={{ margin: "-12px 0 0 0.5em" }}
                   onClick={() => {
                     setEdit(!edit);
                   }}
@@ -188,7 +192,7 @@ export function ChatMessagesComponent<T extends MediatorService>(props: {
                 >
                   <Edit />
                 </IconButton>
-                <IconButton size={"small"} aria-label="Delete message" sx={{ margin: "-12px 0 0 0" }} onClick={() => {
+                <IconButton size={"small"} aria-label="Delete message" onClick={() => {
                   props.chatService.deleteMessage(props.chatId, props.index);
                 }}>
                   <Delete />
@@ -228,6 +232,10 @@ export function ChatMessagesComponent<T extends MediatorService>(props: {
           <MessageContainer message={message} index={index} chatService={props.chatService} chatId={props.chatId} disableEditting={props.disableEditting} key={index}/>
         );
       })}
+      <SourceDialogComponent
+        reference={openReferenceId === undefined ? undefined : references.get(openReferenceId)}
+        onClose={() => setOpenReferenceId(undefined)}
+      />
     </Box>
   );
 }
@@ -242,12 +250,11 @@ const WARNING_LABELS: Record<SourceWarning["kind"], string> = {
 
 function SourceWarningChip(props: { warning: SourceWarning }): JSX.Element {
   return (
-    <Tooltip title={props.warning.message}>
+    <Tooltip {...TOUCH_TOOLTIP} title={props.warning.message}>
       <Chip
         label={WARNING_LABELS[props.warning.kind]}
         color="warning"
         variant="outlined"
-        sx={{ margin: "0 0.5em", marginTop: "-1em" }}
         size="small"
         data-testid={props.warning.kind === "noSource" ? "unverified-source" : `source-warning-${props.warning.kind}`}
       />
@@ -264,30 +271,51 @@ function AutomaticNote(): JSX.Element {
 }
 
 /**
- * The number of a source in the text of an answer, which shows what it is based on and opens the source.
+ * The passages a source was cited for, shown when hovering it.
  */
-function SourceNumber(props: { number: number; citation: EvidenceModel | undefined }): JSX.Element {
-  const item = props.citation?.items[0];
-  const label = <sup data-testid="source-number">[{props.number}]</sup>;
+function CitationPassages(props: { citation: EvidenceModel }): ReactNode {
   return (
-    <Tooltip
-      title={
-        props.citation === undefined ? "" : (
-          <Box sx={{ maxHeight: "20em", overflowY: "auto" }}>
-            <div style={{ fontWeight: 500, marginBottom: "0.5em" }}>{props.citation.source}</div>
-            {props.citation.items.some((candidate) => candidate.automatic) ? <AutomaticNote /> : null}
-            {props.citation.items.flatMap((candidate) => candidate.quotes).slice(0, 4).map((quote, index) => (
-              <div key={index} style={{ marginBottom: "0.25em" }}>"{quote}"</div>
-            ))}
-          </Box>
-        )
-      }
-    >
-      {item !== undefined && Utils.isWebLink(item.url) ? (
-        <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>{label}</a>
-      ) : (
-        <span>{label}</span>
-      )}
+    <Box sx={{ maxHeight: "20em", overflowY: "auto" }}>
+      <div style={{ fontWeight: 500, marginBottom: "0.5em" }}>{props.citation.source}</div>
+      {props.citation.items.some((item) => item.automatic) ? <AutomaticNote /> : null}
+      {props.citation.items.flatMap((item) => item.quotes).slice(0, 4).map((quote, index) => (
+        <div key={index} style={{ marginBottom: "0.25em" }}>"{quote}"</div>
+      ))}
+      <div style={{ marginTop: "0.5em", fontStyle: "italic" }}>Click to see the source.</div>
+    </Box>
+  );
+}
+
+/**
+ * The number of a source in the text of an answer. Hovering it shows the passages, and clicking or tapping it opens
+ * the source with where it was used, instead of leaving the page.
+ */
+function SourceNumber(props: { number: number; citation: EvidenceModel | undefined; onOpen: () => void }): JSX.Element {
+  const label = <sup data-testid="source-number">[{props.number}]</sup>;
+  if (props.citation === undefined) {
+    return label;
+  }
+  return (
+    <Tooltip title={<CitationPassages citation={props.citation} />}>
+      <Box
+        component="button"
+        type="button"
+        onClick={props.onOpen}
+        aria-label={`Source ${props.number}: ${props.citation.source}`}
+        sx={{
+          // A bigger area to tap than the number itself, without moving the text around it.
+          padding: "0.6em 0.5em",
+          margin: "-0.6em -0.35em",
+          border: "none",
+          background: "none",
+          color: "primary.main",
+          font: "inherit",
+          cursor: "pointer",
+          verticalAlign: "baseline",
+        }}
+      >
+        {label}
+      </Box>
     </Tooltip>
   );
 }
