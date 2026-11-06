@@ -77,9 +77,10 @@ export function GeneralModelComponent(props: { service: ModelService }): ReactNo
       <FormControl fullWidth>
         <FormLabel id="general-model-label">Model</FormLabel>
         <Box sx={{ display: "flex", alignItems: "center", gap: "0.25em", marginTop: "0.5em" }}>
+          {/* minWidth 0 lets the list shrink, so the refresh button fits next to it in a narrow menu. */}
           <Select
             size="small"
-            fullWidth
+            sx={{ flex: "1 1 auto", minWidth: 0 }}
             labelId="general-model-label"
             value={general}
             onChange={(event) => props.service.setGeneral(event.target.value)}

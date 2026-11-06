@@ -4,9 +4,9 @@ A research assistant that runs on your own computer. You ask a question, and it 
 
 The language models run locally through [Ollama](https://ollama.com): your questions don't go to a cloud AI service, and you don't need an account.
 
-<img src="docs/screenshots/answer.png" width="800" alt="The research assistant answering which Rust version is the latest. The answer has a small number [1] after each statement, a source label above it, and the side menu shows the sources that were cited and the ones that were read but not used.">
+<img src="docs/screenshots/answer.png" width="800" alt="The research assistant answering which Rust version is the latest. The answer ends with the numbers [1] [2] [3], with three source labels above it, and the side menu shows the sources that were cited and the ones that were read but not used.">
 
-*A real answer: the web search agent found and opened a page, and every statement is numbered with that source. The side menu lists what was cited, and what was read but not used.*
+*A real answer: the web search agent found the release in three search results, and the answer is numbered with each of them. The side menu lists what was cited, and what was read but not used.*
 
 ## Contents
 
@@ -19,6 +19,7 @@ The language models run locally through [Ollama](https://ollama.com): your quest
 - [Your documents](#your-documents)
 - [Your data](#your-data)
 - [Check what you find](#check-what-you-find)
+- [Save a conversation](#save-a-conversation)
 - [Troubleshooting](#troubleshooting)
 - [Updating](#updating)
 
@@ -27,6 +28,7 @@ The language models run locally through [Ollama](https://ollama.com): your quest
 - **The mediator** is the main model. It reads your question, plans what it needs, and calls one agent at a time until it can answer. If a search finds little, it is told to try other words or another agent before giving up.
 - **Agents** each know one kind of source. Most search it and then let a model read what they found, so the mediator gets an answer with its sources instead of a pile of results. Some search agents can open a promising page themselves.
 - **Sources are numbered.** Every source an agent used gets an id, and the answer puts its number after each statement, like [1]. The code then checks each statement against the text of its source, and shows a warning when something doesn't add up.
+- **Saving:** the download button next to Send saves the conversation and its sources, or a report of its conclusions, as Markdown or PDF. See [Save a conversation](#save-a-conversation).
 - **The research server** runs alongside the page. It passes model requests on to Ollama, runs the searches that a browser can't do itself, and opens web pages safely as plain text.
 
 The side menu, behind the button at the top right of the chat, has five tabs:
@@ -42,7 +44,7 @@ The side menu, behind the button at the top right of the chat, has five tabs:
 
 On a phone, the menu slides in from the right, and the tabs have labels:
 
-<img src="docs/screenshots/phone.png" width="560" alt="Two phone screenshots: an answer with numbered sources and a warning label, and the side menu open on the Sources tab, with labelled tabs on the right.">
+<img src="docs/screenshots/phone.png" width="560" alt="Two phone screenshots: an answer with a numbered source and the input bar with its download and send buttons, and the side menu open on the Sources tab, with labelled tabs on the right.">
 
 ## The agents
 
@@ -134,6 +136,10 @@ ollama pull nomic-embed-text
 
 You can use other models too. Install one with `ollama pull <name>`, for example `ollama pull llama3.2`, then pick it in Settings, or for a single agent in its settings. The [Ollama library](https://ollama.com/library) lists the models. Larger models answer better, but need more memory and are slower.
 
+<img src="docs/screenshots/models.png" width="320" alt="The Settings tab: the list of themes with Solarized Light chosen, the model list showing qwen3.5:latest with a refresh button, the hint on installing a model with ollama pull, and the general temperature.">
+
+*Settings lists the models installed in Ollama. The refresh button picks up a model you just installed.*
+
 ### 3. Install Docker (optional)
 
 On Linux:
@@ -194,7 +200,7 @@ Most agents need no key. These two can use one:
 | Wikipedia | Client ID and client secret, required | [Register an OAuth 2.0 app](https://meta.wikimedia.org/wiki/Special:OAuthConsumerRegistration/propose/oauth2) with a Wikimedia account. Choose the "Client credentials" grant. It's free. |
 | arXiv | OpenAlex API key, optional | [openalex.org/settings/api](https://openalex.org/settings/api). It's free and raises the daily limit of searches. |
 
-<img src="docs/screenshots/keys.png" width="320" alt="The Wikipedia agent's settings in the Agents tab: an explanation of how to get a key with a link to register an app, and empty fields for the client ID and client secret.">
+<img src="docs/screenshots/keys.png" width="320" alt="The Wikipedia agent's settings in the Agents tab: an explanation of how to get a key with a link to register an app, empty fields for the client ID and client secret, and below them the agent's model and temperature, which follow the general settings.">
 
 You can enter them in two ways:
 
@@ -289,6 +295,21 @@ The code checks each cited statement against the text of its source, and shows a
 When a model didn't quote a source exactly, the passages are matched to its answer automatically, and the source says so.
 
 This shows where a statement came from, not that it is right. Read the passages before relying on an answer.
+
+## Save a conversation
+
+The download button next to Send saves the conversation, once it has an answer. It offers two documents:
+- **Conversation and sources:** your questions and the answers, with their warnings, followed by every source that was cited and the passages taken from it.
+- **Report of the conclusions:** a short report with a summary, the conclusions with their sources, and what the conversation didn't settle.
+  - **Who writes it:** your general model, which takes a moment.
+  - **Its sources:** the source numbers are checked by the code. A conclusion that cites a source that wasn't used loses that number, and a conclusion without a source is marked *(no source)*.
+  - **The source list** always comes from the conversation itself, never from the model.
+
+<img src="docs/screenshots/save.png" width="800" alt="An answer with three numbered sources, and the save menu open above the download button: the conversation and sources, or a report of the conclusions, each as Markdown or PDF.">
+
+*The download button next to Send opens the save menu.*
+
+Each comes as a Markdown file (`.md`), or as a PDF. For the PDF, the browser's print dialog opens: choose **Save as PDF** as the printer. Each answer numbers its sources from [1], so a saved document numbers them again, once for the whole conversation.
 
 ## Troubleshooting
 

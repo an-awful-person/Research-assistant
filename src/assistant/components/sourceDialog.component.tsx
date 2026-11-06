@@ -13,6 +13,8 @@ import {
   useTheme,
 } from "@mui/material";
 import type { ReactNode } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Utils } from "../../services/utils.service";
 import type { ReferenceModel } from "../model/reference.model";
 
@@ -80,8 +82,22 @@ export function SourceDialogComponent(props: {
               reference.usedIn.map((use, index) => (
                 <Box key={index} sx={{ margin: "0.75em 0" }} data-testid="source-use">
                   <Typography variant="subtitle2">{use.question}</Typography>
-                  <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
-                    {use.answer}
+                  {/* Answers are Markdown. Like in the chat, nothing in them can make the browser load something. */}
+                  <Typography variant="body2" component="div" sx={{ "& p": { margin: "0.25em 0" }, overflowWrap: "anywhere" }}>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      disallowedElements={["img"]}
+                      unwrapDisallowed
+                      components={{
+                        a: ({ href, children }) => (
+                          <Link href={href} target="_blank" rel="noopener noreferrer">
+                            {children}
+                          </Link>
+                        ),
+                      }}
+                    >
+                      {use.answer}
+                    </ReactMarkdown>
                   </Typography>
                   <Typography variant="caption" sx={{ color: "text.secondary" }}>
                     {use.date}

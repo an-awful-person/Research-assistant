@@ -2,8 +2,15 @@ import { ArrowUpward } from "@mui/icons-material";
 import { Box, IconButton, InputBase, Paper, Tooltip, Typography, useMediaQuery } from "@mui/material";
 import { type JSX, type KeyboardEvent, useState } from "react";
 import { useReactive } from "../../services/reactive.service";
+import { MESSAGE_ROLES } from "../constants/llm.constants";
+import type { META_LMMMessage } from "../model/llm.model";
 import { AgentsService } from "../services/agents.service";
 import { MediatorService } from "../services/mediator.service";
+import { ExportMenuComponent } from "./exportMenu.component";
+
+function hasAnswers(chats: Map<string, META_LMMMessage[]>): boolean {
+  return (chats.get(MediatorService.VISIBLE_CHAT_ID) ?? []).some((message) => message.role === MESSAGE_ROLES.ASSISTANT);
+}
 
 /**
  * The box to type a question in. Enter sends it and Shift+Enter starts a new line.
@@ -19,6 +26,8 @@ export function ChatInputComponent(props: {
   const [status, setStatus] = useState<string>(agentsService.currentStatus.value);
   useReactive(props.chatService.currentTextInput, setChatInput);
   useReactive(agentsService.currentStatus, setStatus);
+  const [answered, setAnswered] = useState<boolean>(hasAnswers(props.chatService.activeChats.value));
+  useReactive(props.chatService.activeChats, (chats) => setAnswered(hasAnswers(chats)));
 
   // Phones held sideways have little height, so the box grows less.
   const isShort = useMediaQuery("(max-height: 500px)");
@@ -66,6 +75,7 @@ export function ChatInputComponent(props: {
           inputProps={{ "aria-label": "Your question" }}
           sx={{ alignSelf: "center", paddingY: "0.35em", lineHeight: 1.5 }}
         />
+        <ExportMenuComponent service={props.chatService.assistantService.exportService} hasAnswers={answered} busy={busy} />
         <Tooltip title={busy ? "Wait until the current answer is done" : "Send"}>
           {/* The span keeps the tooltip working while the button is disabled. */}
           <span>

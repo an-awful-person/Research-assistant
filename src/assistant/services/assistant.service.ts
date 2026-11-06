@@ -6,6 +6,7 @@ import { StorageService } from "../../services/storage.service";
 import type { ReferenceModel } from "../model/reference.model";
 import { DocumentsService } from "./documents.service";
 import { EvidenceService } from "./evidence.service";
+import { ExportService } from "./export.service";
 import { LLMApiService } from "./llmApi.service";
 import { MediatorService } from "./mediator.service";
 import { ModelService } from "./model.service";
@@ -31,6 +32,7 @@ export class AssistantService implements Service {
     private _documentsService:DocumentsService;
     private _sharedKeysService:SharedKeysService;
     private _modelService:ModelService;
+    private _exportService:ExportService;
 
     private _services:Service[] = [];
 
@@ -52,6 +54,7 @@ export class AssistantService implements Service {
         this._documentsService = new DocumentsService(this._ragService);
         this._evidenceService = new EvidenceService(this._references);
         this._webSearchService = new WebSearchService(this._apiService, this._storageService);
+        this._exportService = new ExportService(this);
 
         this._services.push(this._LLMApiService);
         this._services.push(this._globalChatService);
@@ -63,6 +66,7 @@ export class AssistantService implements Service {
         this._services.push(this._modelService);
         this._services.push(this._documentsService);
         this._services.push(this._sharedKeysService);
+        this._services.push(this._exportService);
     }
 
     init(){
@@ -107,6 +111,10 @@ export class AssistantService implements Service {
 
     get modelService():ModelService{
         return this._modelService;
+    }
+
+    get exportService():ExportService{
+        return this._exportService;
     }
 
     get sharedKeysService():SharedKeysService{
