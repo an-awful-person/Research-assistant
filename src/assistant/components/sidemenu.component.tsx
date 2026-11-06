@@ -77,6 +77,7 @@ export function SideMenuComponent(props: {
             <SettingsComponent
               themeService={props.themeService}
               temperatureService={props.assistantService.temperatureService}
+              modelService={props.assistantService.modelService}
             />
           </TabPanel>
         </Box>

@@ -12,6 +12,8 @@ import { useReactive } from "../../services/reactive.service";
 import type { ThemeService } from "../../services/theme.service";
 import type { TemperatureService } from "../services/temperature.service";
 import { GeneralTemperatureComponent } from "./temperatureSlider.component";
+import { GeneralModelComponent } from "./modelSelect.component";
+import type { ModelService } from "../services/model.service";
 
 /**
  * A small preview of the background, text and accent colors of a theme.
@@ -42,6 +44,7 @@ function ThemeSwatch(props: { theme: ThemeDefinition }): ReactNode {
 export function SettingsComponent(props: {
   themeService: ThemeService;
   temperatureService: TemperatureService;
+  modelService: ModelService;
 }): ReactNode {
   const [theme, setTheme] = useState<ThemeDefinition>(props.themeService.theme.value);
 
@@ -72,6 +75,7 @@ export function SettingsComponent(props: {
           ))}
         </RadioGroup>
       </FormControl>
+      <GeneralModelComponent service={props.modelService} />
       <GeneralTemperatureComponent service={props.temperatureService} />
     </Box>
   );

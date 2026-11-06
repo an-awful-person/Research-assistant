@@ -52,7 +52,7 @@ export class WikipediaSearchPagesAgent extends AbstractAgent {
     const result = await this._assistantService.llmApiService.jsonCall<FindWikipediaPageResponseMessage>(
       messages,
       FIND_WIKIPEDIA_PAGE_JSON_SCHEMA,
-      { temperature: this._assistantService.temperatureService.forAgent(this._temperatureAgentId) },
+      { temperature: this._assistantService.temperatureService.forAgent(this._temperatureAgentId) }, this._assistantService.modelService.forAgent(this._temperatureAgentId),
     );
 
     const content = JSON.stringify(result);

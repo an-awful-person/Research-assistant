@@ -189,7 +189,7 @@ export class SearchBreakdownAgent extends AbstractAgent {
   private async ask(messages: LLMMessage[], conversation: string, schema: object): Promise<SearchBreakdownResponse> {
     const result = await this._assistantService.llmApiService.jsonCall<SearchBreakdownResponse>(messages, schema, {
       temperature: this._assistantService.temperatureService.forAgent(this._temperatureAgentId),
-    });
+    }, this._assistantService.modelService.forAgent(this._temperatureAgentId));
     this._assistantService.mediatorService.pushMessage(conversation, {
       role: MESSAGE_ROLES.ASSISTANT,
       content: JSON.stringify(result),

@@ -26,6 +26,7 @@ import type {
   WikipediaSearchPagesResponse,
 } from "../../../model/wikipedia.model";
 import { AgentTemperatureComponent } from "../../../components/temperatureSlider.component";
+import { AgentModelComponent } from "../../../components/modelSelect.component";
 import { AgentsService } from "../../../services/agents.service";
 import type { AssistantService } from "../../../services/assistant.service";
 import type { SharedKeys } from "../../../services/sharedKeys.service";
@@ -40,6 +41,7 @@ import {
 } from "./wikipediaSummaryPage.agent";
 import { LLMApiService } from "../../../services/llmApi.service";
 import type { TemperatureService } from "../../../services/temperature.service";
+import type { ModelService } from "../../../services/model.service";
 
 type WikipediaAuthorizationHeaders = { Authorization: string };
 
@@ -160,6 +162,10 @@ export class WikipediaAgent extends AbstractMediatorAccessibleAgent {
 
   get temperatureService(): TemperatureService {
     return this._assistantService.temperatureService;
+  }
+
+  get modelService(): ModelService {
+    return this._assistantService.modelService;
   }
 
   get canBeEnabled(): boolean {
@@ -631,6 +637,7 @@ function WikipediaAgentSettings(props: {
       />
       </Tooltip>
       <Divider sx={{ margin: "0.5em" }} />
+      <AgentModelComponent service={props.agent.modelService} agentId={props.agent.id} />
       <AgentTemperatureComponent service={props.agent.temperatureService} agentId={props.agent.id} />
     </Box>
   );

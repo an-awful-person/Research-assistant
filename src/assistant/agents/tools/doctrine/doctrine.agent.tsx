@@ -20,10 +20,12 @@ import type {
   DoctrineTextResponse,
 } from "../../../model/doctrine.model";
 import { AgentTemperatureComponent } from "../../../components/temperatureSlider.component";
+import { AgentModelComponent } from "../../../components/modelSelect.component";
 import { CITE_SOURCES_NOTE } from "../../../constants/llm.constants";
 import { SEARCH_NEXT_STEP } from "../../../model/decoding.model";
 import { AgentsService } from "../../../services/agents.service";
 import type { TemperatureService } from "../../../services/temperature.service";
+import type { ModelService } from "../../../services/model.service";
 import type { AssistantService } from "../../../services/assistant.service";
 import { LLMApiService } from "../../../services/llmApi.service";
 import {
@@ -82,6 +84,10 @@ export class DoctrineAgent extends AbstractMediatorAccessibleAgent {
 
   get temperatureService(): TemperatureService {
     return this._assistantService.temperatureService;
+  }
+
+  get modelService(): ModelService {
+    return this._assistantService.modelService;
   }
 
   async main(input: string[]): Promise<string> {
@@ -442,6 +448,7 @@ function DoctrineAgentSettings(props: { agent: DoctrineAgent }): ReactNode {
         />
       </Tooltip>
       <Divider sx={{ margin: "0.5em" }} />
+      <AgentModelComponent service={props.agent.modelService} agentId={props.agent.id} />
       <AgentTemperatureComponent service={props.agent.temperatureService} agentId={props.agent.id} />
     </Box>
   );

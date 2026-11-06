@@ -8,6 +8,7 @@ import { DocumentsService } from "./documents.service";
 import { EvidenceService } from "./evidence.service";
 import { LLMApiService } from "./llmApi.service";
 import { MediatorService } from "./mediator.service";
+import { ModelService } from "./model.service";
 import { NominatimService } from "./nominatim.service";
 import { RagService } from "./rag.service";
 import { SharedKeysService } from "./sharedKeys.service";
@@ -29,6 +30,7 @@ export class AssistantService implements Service {
     private _temperatureService:TemperatureService;
     private _documentsService:DocumentsService;
     private _sharedKeysService:SharedKeysService;
+    private _modelService:ModelService;
 
     private _services:Service[] = [];
 
@@ -43,6 +45,7 @@ export class AssistantService implements Service {
         this._sharedKeysService = new SharedKeysService(this._apiService);
         this._LLMApiService = new LLMApiService();
         this._temperatureService = new TemperatureService(this._storageService);
+        this._modelService = new ModelService(this._storageService, this._LLMApiService);
         this._globalChatService = new MediatorService(this);
         this._nominatimService = new NominatimService(this);
         this._ragService = new RagService(this._LLMApiService);
@@ -57,6 +60,7 @@ export class AssistantService implements Service {
         this._services.push(this._evidenceService);
         this._services.push(this._webSearchService);
         this._services.push(this._temperatureService);
+        this._services.push(this._modelService);
         this._services.push(this._documentsService);
         this._services.push(this._sharedKeysService);
     }
@@ -99,6 +103,10 @@ export class AssistantService implements Service {
 
     get temperatureService():TemperatureService{
         return this._temperatureService;
+    }
+
+    get modelService():ModelService{
+        return this._modelService;
     }
 
     get sharedKeysService():SharedKeysService{

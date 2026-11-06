@@ -25,10 +25,12 @@ import type {
   OpenAlexWorksResponse,
 } from "../../../model/arxiv.model";
 import { AgentTemperatureComponent } from "../../../components/temperatureSlider.component";
+import { AgentModelComponent } from "../../../components/modelSelect.component";
 import { AgentsService } from "../../../services/agents.service";
 import type { AssistantService } from "../../../services/assistant.service";
 import type { SharedKeys } from "../../../services/sharedKeys.service";
 import type { TemperatureService } from "../../../services/temperature.service";
+import type { ModelService } from "../../../services/model.service";
 import {
   ArxivPaperAnswerAgent,
   type ArxivPaperAnswerResponseMessage,
@@ -182,6 +184,10 @@ export class ArxivAgent extends AbstractMediatorAccessibleAgent {
 
   get temperatureService(): TemperatureService {
     return this._assistantService.temperatureService;
+  }
+
+  get modelService(): ModelService {
+    return this._assistantService.modelService;
   }
 
   /**
@@ -670,6 +676,7 @@ function ArxivAgentSettings(props: { agent: ArxivAgent }): ReactNode {
         />
       </Tooltip>
       <Divider sx={{ margin: "0.5em" }} />
+      <AgentModelComponent service={props.agent.modelService} agentId={props.agent.id} />
       <AgentTemperatureComponent service={props.agent.temperatureService} agentId={props.agent.id} />
     </Box>
   );

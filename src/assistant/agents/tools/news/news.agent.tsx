@@ -20,11 +20,13 @@ import type {
   NewsLeadType,
 } from "../../../model/news.model";
 import { AgentTemperatureComponent } from "../../../components/temperatureSlider.component";
+import { AgentModelComponent } from "../../../components/modelSelect.component";
 import { SEARCH_NEXT_STEP } from "../../../model/decoding.model";
 import type { SearchAttempt } from "../../../model/webSearch.model";
 import { AgentsService } from "../../../services/agents.service";
 import type { AssistantService } from "../../../services/assistant.service";
 import type { TemperatureService } from "../../../services/temperature.service";
+import type { ModelService } from "../../../services/model.service";
 import { SearchBreakdownAgent, type SearchBreakdownItem } from "../searchBreakdown.agent";
 import { describeSearch } from "../searchOverview";
 
@@ -100,6 +102,10 @@ export class NewsAgent extends AbstractMediatorAccessibleAgent {
 
   get temperatureService(): TemperatureService {
     return this._assistantService.temperatureService;
+  }
+
+  get modelService(): ModelService {
+    return this._assistantService.modelService;
   }
 
   async main(input: string[]): Promise<string> {
@@ -424,6 +430,7 @@ function NewsAgentSettings(props: { agent: NewsAgent }): ReactNode {
         />
       </Tooltip>
       <Divider sx={{ margin: "0.5em" }} />
+      <AgentModelComponent service={props.agent.modelService} agentId={props.agent.id} />
       <AgentTemperatureComponent service={props.agent.temperatureService} agentId={props.agent.id} />
     </Box>
   );

@@ -9,8 +9,10 @@ import { MediatorService } from "../../services/mediator.service";
 import { type LLMMessage } from "../../model/llm.model";
 import { MESSAGE_ROLES } from "../../constants/llm.constants";
 import { AgentTemperatureComponent } from "../../components/temperatureSlider.component";
+import { AgentModelComponent } from "../../components/modelSelect.component";
 import { AgentsService } from "../../services/agents.service";
 import type { TemperatureService } from "../../services/temperature.service";
+import type { ModelService } from "../../services/model.service";
 import {
   Box,
   Checkbox,
@@ -67,6 +69,10 @@ export class NominatimSearchAgent extends AbstractMediatorAccessibleAgent {
 
   get temperatureService(): TemperatureService {
     return this._assistantService.temperatureService;
+  }
+
+  get modelService(): ModelService {
+    return this._assistantService.modelService;
   }
 
   /**
@@ -210,7 +216,7 @@ export class NominatimSearchAgent extends AbstractMediatorAccessibleAgent {
       this._assistantService.llmApiService
         .jsonCall<{ place_id: number }>(context, internal_jsonSchema, {
           temperature: this._assistantService.temperatureService.forAgent(this.id),
-        })
+        }, this._assistantService.modelService.forAgent(this.id))
         .then((result) => {
           if (result.place_id == 0) {
             resolve(`Could not find a suited match for ${searchTerm}`);
@@ -293,6 +299,7 @@ function RespondAgentSettings(props: { agent: NominatimSearchAgent }) {
         />
       </Tooltip>
       <Divider sx={{ margin: "0.5em" }} />
+      <AgentModelComponent service={props.agent.modelService} agentId={props.agent.id} />
       <AgentTemperatureComponent service={props.agent.temperatureService} agentId={props.agent.id} />
     </Box>
   );

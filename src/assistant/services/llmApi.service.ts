@@ -54,6 +54,20 @@ export class LLMApiService implements Service {
   }
 
   /**
+   * @returns The models installed in Ollama on the computer running the assistant
+   */
+  listModels(): Promise<{ name: string; size: number; family: string; parameterSize: string }[]> {
+    return this._ollama.list().then((response) =>
+      response.models.map((model) => ({
+        name: model.name,
+        size: model.size,
+        family: model.details?.family ?? "",
+        parameterSize: model.details?.parameter_size ?? "",
+      })),
+    );
+  }
+
+  /**
    * Turns texts into vectors, where texts with a similar meaning get similar vectors.
    * @param texts The texts to embed
    * @param model The embedding model to use

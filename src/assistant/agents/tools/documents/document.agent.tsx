@@ -4,12 +4,14 @@ import z from "zod";
 import { AbstractMediatorAccessibleAgent } from "../../../../interfaces/agents.interface";
 import { useReactive } from "../../../../services/reactive.service";
 import { AgentTemperatureComponent } from "../../../components/temperatureSlider.component";
+import { AgentModelComponent } from "../../../components/modelSelect.component";
 import { CITE_SOURCES_NOTE, MESSAGE_ROLES } from "../../../constants/llm.constants";
 import type { DocumentAgentResponse, DocumentAnswerResponse, UploadedDocument } from "../../../model/document.model";
 import { AgentsService } from "../../../services/agents.service";
 import type { AssistantService } from "../../../services/assistant.service";
 import { DocumentsService } from "../../../services/documents.service";
 import type { TemperatureService } from "../../../services/temperature.service";
+import type { ModelService } from "../../../services/model.service";
 
 type SelectedText = { document: UploadedDocument; text: string; isWhole: boolean };
 
@@ -80,6 +82,10 @@ export class DocumentAgent extends AbstractMediatorAccessibleAgent {
 
   get temperatureService(): TemperatureService {
     return this._assistantService.temperatureService;
+  }
+
+  get modelService(): ModelService {
+    return this._assistantService.modelService;
   }
 
   private get documentsService(): DocumentsService {
@@ -189,7 +195,7 @@ export class DocumentAgent extends AbstractMediatorAccessibleAgent {
 
     const response = await this._assistantService.llmApiService.jsonCall<DocumentAnswerResponse>(messages, ANSWER_JSON_SCHEMA, {
       temperature: this._assistantService.temperatureService.forAgent(this.id),
-    });
+    }, this._assistantService.modelService.forAgent(this.id));
     if (conversation !== undefined) {
       chatService.pushMessage(conversation, { role: MESSAGE_ROLES.ASSISTANT, content: JSON.stringify(response) });
     }
@@ -263,6 +269,7 @@ function DocumentAgentSettings(props: { agent: DocumentAgent }): ReactNode {
         />
       </Tooltip>
       <Divider sx={{ margin: "0.5em" }} />
+      <AgentModelComponent service={props.agent.modelService} agentId={props.agent.id} />
       <AgentTemperatureComponent service={props.agent.temperatureService} agentId={props.agent.id} />
     </Box>
   );

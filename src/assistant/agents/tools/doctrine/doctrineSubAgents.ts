@@ -38,7 +38,7 @@ abstract class DoctrineStepAgent<T> extends AbstractAgent {
 
     const result = await this._assistantService.llmApiService.jsonCall<T>(messages, this._schema, {
       temperature: this._assistantService.temperatureService.forAgent(this._temperatureAgentId),
-    });
+    }, this._assistantService.modelService.forAgent(this._temperatureAgentId));
     chatService.pushMessage(openChatID, { role: MESSAGE_ROLES.ASSISTANT, content: JSON.stringify(result) });
     return result;
   }

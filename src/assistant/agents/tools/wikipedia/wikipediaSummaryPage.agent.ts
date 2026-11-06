@@ -57,7 +57,7 @@ export class WikipediaSummaryPageAgent extends AbstractAgent {
     const result = await this._assistantService.llmApiService.jsonCall<SummaryWikipediaPageResponseMessage>(
       messages,
       SUMMARY_WIKIPEDIA_PAGE_DECODING_PROMPT,
-      { temperature: this._assistantService.temperatureService.forAgent(this._temperatureAgentId) },
+      { temperature: this._assistantService.temperatureService.forAgent(this._temperatureAgentId) }, this._assistantService.modelService.forAgent(this._temperatureAgentId),
     );
 
     const content = JSON.stringify(result);

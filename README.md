@@ -4,6 +4,10 @@ A research assistant that runs on your own computer. You ask a question, and it 
 
 The language models run locally through [Ollama](https://ollama.com): your questions don't go to a cloud AI service, and you don't need an account.
 
+<img src="docs/screenshots/answer.png" width="800" alt="The research assistant answering which Rust version is the latest. The answer has a small number [1] after each statement, a source label above it, and the side menu shows the sources that were cited and the ones that were read but not used.">
+
+*A real answer: the web search agent found and opened a page, and every statement is numbered with that source. The side menu lists what was cited, and what was read but not used.*
+
 ## Contents
 
 - [How it works](#how-it-works)
@@ -26,11 +30,19 @@ The language models run locally through [Ollama](https://ollama.com): your quest
 - **The research server** runs alongside the page. It passes model requests on to Ollama, runs the searches that a browser can't do itself, and opens web pages safely as plain text.
 
 The side menu, behind the button at the top right of the chat, has five tabs:
-- **Agents:** turn agents on or off, enter keys, set their temperature.
+- **Agents:** turn agents on or off, enter keys, and pick a model and temperature for each agent. Until you pick one, an agent uses the general model and temperature.
 - **Agent Conversations:** see what each agent searched, read and answered.
 - **Sources:** every source used in this session, with the passages it was cited for.
 - **Documents:** upload your own files.
-- **Settings:** the theme and the general temperature of the models.
+- **Settings:** the theme, from light and dark to Solarized, Nord, Dracula and Gruvbox, and the general model and temperature. The model list shows the models installed in Ollama.
+
+<img src="docs/screenshots/conversation.png" width="800" alt="The conversation of the web search agent: the search it made in SearXNG and DuckDuckGo, how many results each gave, and the list of results that were given to the model.">
+
+*Agent Conversations shows everything an agent did. Here, the web search agent's searches and the results it read. SearXNG wasn't running, so DuckDuckGo did the search on its own.*
+
+On a phone, the menu slides in from the right, and the tabs have labels:
+
+<img src="docs/screenshots/phone.png" width="560" alt="Two phone screenshots: an answer with numbered sources and a warning label, and the side menu open on the Sources tab, with labelled tabs on the right.">
 
 ## The agents
 
@@ -95,7 +107,11 @@ nvm install 24
 
 On Windows, use the installer from [nodejs.org](https://nodejs.org).
 
-Check it with `node --version`. It should show v22.18 or newer.
+Check it with `node --version`. It should show v22.18 or newer, for example:
+
+```text
+v24.13.1
+```
 
 ### 2. Install Ollama and the models
 
@@ -115,6 +131,8 @@ ollama pull nomic-embed-text
 ```
 
 `qwen3.5` answers the questions. `nomic-embed-text` finds the relevant parts of long papers and documents; without it, the arXiv agent reads only abstracts.
+
+You can use other models too. Install one with `ollama pull <name>`, for example `ollama pull llama3.2`, then pick it in Settings, or for a single agent in its settings. The [Ollama library](https://ollama.com/library) lists the models. Larger models answer better, but need more memory and are slower.
 
 ### 3. Install Docker (optional)
 
@@ -142,6 +160,14 @@ cd research-assistant
 npm start
 ```
 
+You should see something like this, and your browser opens the assistant:
+
+```text
+[start] Ollama is already running, and will be left running
+Research server listening on http://127.0.0.1:3001
+[start] Ready at http://127.0.0.1:3001. Press Ctrl+C to stop.
+```
+
 This installs what is missing, builds the application, starts it and opens your browser at http://localhost:3001. If a model is missing, you're asked before it's downloaded. If Docker is available, the first start also downloads SearXNG.
 
 Press Ctrl+C to stop it, along with anything it started.
@@ -167,6 +193,8 @@ Most agents need no key. These two can use one:
 |---|---|---|
 | Wikipedia | Client ID and client secret, required | [Register an OAuth 2.0 app](https://meta.wikimedia.org/wiki/Special:OAuthConsumerRegistration/propose/oauth2) with a Wikimedia account. Choose the "Client credentials" grant. It's free. |
 | arXiv | OpenAlex API key, optional | [openalex.org/settings/api](https://openalex.org/settings/api). It's free and raises the daily limit of searches. |
+
+<img src="docs/screenshots/keys.png" width="320" alt="The Wikipedia agent's settings in the Agents tab: an explanation of how to get a key with a link to register an app, and empty fields for the client ID and client secret.">
 
 You can enter them in two ways:
 
@@ -224,6 +252,11 @@ Things to know:
 ## Your documents
 
 The Documents tab takes Word (`.docx`), PDF, text and Markdown files, so the model can answer questions about them and reason about them.
+
+<img src="docs/screenshots/document.png" width="800" alt="An uploaded example memo listed in the Documents tab, and an answer about it that cites the memo as source 1.">
+
+*An example memo uploaded in the Documents tab, and an answer that cites it.*
+
 - **Where they go:** files are read in your browser, and their text only goes to your language model, not to the research server.
 - **How long they stay:** for the session, so reloading the page clears them.
 - **What can't be read:** scanned PDFs without text, old `.doc` files, and images.
@@ -240,7 +273,11 @@ Web search, Reddit and LinkedIn read the result pages of search engines automati
 
 ## Check what you find
 
-Every source an agent used gets a number, and the answer puts that number after each statement that comes from it, like [1]. Hover a number to see the passage it is based on, or click it to open the source. The same numbers are on the source labels above the answer.
+Every source an agent used gets a number, and the answer puts that number after each statement that comes from it, like [1]. Hover a number to see the passage it is based on, or click or tap it to open the source. The same numbers are on the source labels above the answer.
+
+<img src="docs/screenshots/source.png" width="800" alt="The window of a cited source: when it was first retrieved, a link to open it, the passages that were taken from it, and the answers it was used in.">
+
+*Clicking [1] shows what was taken from the source and where it was used, with a link to the source itself.*
 
 The code checks each cited statement against the text of its source, and shows a warning when:
 - **Not found in source:** a statement can't be found in the source it cites.

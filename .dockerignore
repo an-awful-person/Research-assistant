@@ -12,3 +12,4 @@ dist
 # Not needed to build
 README.md
 docker-compose*.yml
+docs

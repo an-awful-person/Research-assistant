@@ -390,7 +390,7 @@ export class MediatorService implements Service {
     this._LLMApiService
       .jsonCall<ReActPromptResponse>(messages, REACT_PROMPT, {
         temperature: this.__assistantService.temperatureService.general.value,
-      })
+      }, this.__assistantService.modelService.general.value)
       .then((response) => {
         this.determineNextAction(response);
       })
