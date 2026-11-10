@@ -6,6 +6,7 @@ export const AGENTS_DESCRIPTION_KEYWORD = '[AGENTS_DESCRIPTION]'
 
 /** Where the uploaded documents are described, if there are any. */
 export const DOCUMENTS_KEYWORD = '[DOCUMENTS]'
+export const SKILLS_KEYWORD = "{SKILLS_DESCRIPTION}";
 
 export const REACT_PROMPT_SYSTEM_MESSAGE: LLMMessage = {
     role: MESSAGE_ROLES.SYSTEM,
@@ -26,6 +27,7 @@ To answer questions you can ask questions back to the user or use the following 
 
 ${AGENTS_DESCRIPTION_KEYWORD}
 ${DOCUMENTS_KEYWORD}
+${SKILLS_KEYWORD}
 Always provide a function in your response! If you know enough, use the 'respond(answer:string)' function, else if you can't find a proper function, use askUser(question:string) to ask the user for more information.
 
 A search that finds little doesn't mean the information doesn't exist. Before you conclude that something can't be found, approach it from different angles: search again with other words, such as synonyms, broader or narrower terms, abbreviations or related names, and try other functions that could know about it. Never make the same call twice. If you still find nothing, say what you tried, and don't fill the gaps from memory.

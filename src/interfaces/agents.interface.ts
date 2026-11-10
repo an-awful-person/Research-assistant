@@ -66,6 +66,11 @@ export interface MediatorAccessableAgent extends Agent {
      * This is to edit the agent settings using the interface.
      */
     settings: ReactElement<any>;
+
+    /**
+     * If this is managed elsewhere than the list of agents, like the tools of MCP servers.
+     */
+    hiddenFromSettings: boolean;
 }
 
 export abstract class AbstractAgent implements Agent {
@@ -130,5 +135,9 @@ export abstract class AbstractMediatorAccessibleAgent extends AbstractAgent impl
 
     get settings(): ReactElement<any> {
         return this._settings;
+    }
+
+    get hiddenFromSettings(): boolean {
+        return false;
     }
 }

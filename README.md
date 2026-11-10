@@ -20,6 +20,8 @@ The language models run locally through [Ollama](https://ollama.com): your quest
 - [Your data](#your-data)
 - [Check what you find](#check-what-you-find)
 - [Save a conversation](#save-a-conversation)
+- [Skills](#skills)
+- [MCP servers](#mcp-servers)
 - [Troubleshooting](#troubleshooting)
 - [Updating](#updating)
 
@@ -31,13 +33,15 @@ The language models run locally through [Ollama](https://ollama.com): your quest
 - **Saving:** the download button next to Send saves the conversation and its sources, or a report in the style of a scientific paper with free photos, as PDF or Markdown. See [Save a conversation](#save-a-conversation).
 - **The research server** runs alongside the page. It passes model requests on to Ollama, runs the searches that a browser can't do itself, and opens web pages safely as plain text.
 
-The side menu, behind the button at the top right of the chat, has six tabs:
+The side menu, behind the button at the top right of the chat, has eight tabs:
 - **Conversations:** start a new conversation, switch to an earlier one, or delete one or all of them. Each conversation has its own sources.
 - **Agents:** turn agents on or off, enter keys, and pick a model and temperature for each agent. Until you pick one, an agent uses the general model and temperature.
 - **Agent Conversations** ("Steps" on a phone): see what each agent searched, read and answered.
 - **Sources:** every source used in this session, with the passages it was cited for.
 - **Documents:** upload your own files.
-- **Settings:** the theme, from light and dark to Solarized, Nord, Dracula and Gruvbox, and the general model and temperature. The model list shows the models installed in Ollama.
+- **Skills:** instructions for a kind of task, which the model follows. See [Skills](#skills).
+- **MCP servers:** extra tools from MCP servers. See [MCP servers](#mcp-servers).
+- **Settings:** the theme, from light and dark to Solarized, Nord, Dracula and Gruvbox, and the general model and temperature. The model list shows the models installed in Ollama, and a meter shows how much room skills and MCP tools take.
 
 <img src="docs/screenshots/history.png" width="800" alt="Three conversations listed in the Conversations tab, the newest one open and highlighted, with a delete button on each, a New conversation button at the top and Delete all conversations at the bottom.">
 
@@ -281,6 +285,8 @@ The Documents tab takes Word (`.docx`), PDF, text and Markdown files, so the mod
 - **Searches** go to the sources themselves, directly from your browser or through the research server.
 - **Photo searches** for a report go to Wikimedia Commons, only when you save a report with photos on.
 - **Keys** you enter in the agent settings are stored only in your browser.
+- **Skills and MCP servers you add** are stored only in your browser. A key for an MCP server passes through the research server for each request, and is never stored or logged there.
+- **MCP tools** you switch on send what the model gives them to that server.
 - **Conversations** and their sources are stored only in your browser, until you delete them in the Conversations tab. Someone else using the same browser can see them.
 - **Pages** that are opened see a visit from your internet address.
 
@@ -325,6 +331,118 @@ Choose **PDF** for a document to read, print or share, or **Markdown** for plain
 *The first page of a real report. The photo of the frigate came from Wikimedia Commons, with its credit underneath. Which photos are found differs from one report to the next, and some reports get none.*
 
 Each answer numbers its sources from [1], so a saved document numbers them again, once for the whole conversation.
+
+## Skills
+
+A skill is a folder with a `SKILL.md` file: a name, a description of when to use it, and instructions. It's the same format other AI tools use, so existing skills usually work.
+
+<img src="docs/screenshots/skills.png" width="800" alt="The Skills tab listing a skill named short-brief with a switch, and the question box with a slash typed in it, showing a list to pick that skill from.">
+
+*The Skills tab. Typing / in the question box lists the skills.*
+
+- **The model picks one** when a question fits its description, and reads its instructions then.
+- **You can choose one yourself:** type `/` in the question box and pick it. It then applies to that one question.
+- **Only text is used.** Instructions and text files are read, and scripts in a skill are never run. The window shows what was left out.
+- **The rules on sources always stay in force,** whatever a skill says.
+
+Add skills in three ways:
+
+- **Search for them:** the search box in the Skills tab looks through [skills.sh](https://skills.sh) and [Awesome Skills](https://github.com/sickn33/antigravity-awesome-skills). See [Finding skills](#finding-skills).
+- **For yourself:** the Skills tab takes a `SKILL.md` or a `.zip`. You see the full text first, and it's kept in that browser. A skill is instructions to your model, so read skills from people you don't know.
+- **For everyone using your computer:** put a folder per skill in the `skills` folder:
+
+  ```text
+  skills/
+    short-brief/
+      SKILL.md
+  ```
+
+  ```markdown
+  ---
+  name: short-brief
+  description: Use this when the user asks for a brief or a short summary for a commander.
+  ---
+  Write the answer in exactly two parts, starting with "BOTTOM LINE:" and "DETAILS:".
+  ```
+
+  Reload the page to see a new skill. The name can have lowercase letters, numbers and dashes.
+
+### Finding skills
+
+<img src="docs/screenshots/skill-search.png" width="320" alt="The Skills tab with a search for literature review, showing results from Awesome Skills with a description and a risk label, and from skills.sh with an install count.">
+
+Type what you're looking for and press Enter. Open a result to read it, then choose **Add skill**.
+
+- **Solely Markdown:** a skill can only be added if its whole folder is `.md` files, apart from a licence. If it has anything else, such as a script, an image or a settings file, it's refused and the files are named. Many skills have one of these, so expect some refusals.
+- **You read it first.** Anyone can publish a skill, and many installs doesn't mean a skill is safe. Awesome Skills gives each skill a risk label, which is shown, and skills labelled offensive aren't listed. skills.sh has no labels.
+- **It's a copy,** kept in that browser. It doesn't change when the original does.
+- **What's shared:** your search words go to those sites, through the research server, and only when you search.
+- **GitHub's limit:** opening a result uses a lookup, and GitHub allows 60 an hour per internet connection. If you reach that, wait, or put a `GITHUB_TOKEN` in `.env`. A token without any permissions is enough.
+
+skills.sh's search isn't documented for outside use, so it could stop working. Awesome Skills would still be searched.
+
+Skills work with every model, because they're only text. How well they're followed differs per model: small models may miss a fitting skill, so choose it with `/` if that happens.
+
+## MCP servers
+
+[MCP](https://modelcontextprotocol.io) is a standard way to give AI assistants extra tools. The MCP servers tab lists every tool, and every tool starts switched off.
+
+<img src="docs/screenshots/mcp.png" width="320" alt="The MCP servers tab: a server named files with two tools switched on, one labelled Read-only and one labelled Can change things, and a form to add your own remote server.">
+
+Once switched on, the model can use a tool like any agent, and what it returns becomes a numbered source:
+
+- **Tools labelled read-only** run by themselves. That label is the server's own claim, so only switch on tools from servers you trust.
+- **All other tools ask first,** showing exactly what would be sent. You can tick *Auto-confirm this tool in this conversation* if the asking gets annoying. It ends when you switch conversation or reload.
+
+<img src="docs/screenshots/approval.png" width="800" alt="A request above the question box: allow files / write_file to run, showing the path and content it would write, a checkbox to auto-confirm this tool in this conversation, and Deny and Allow buttons.">
+
+*Read what a tool wants to send. Smaller models can get the values wrong.*
+
+**Search for a server** with the search box in the MCP servers tab, which looks in the official [MCP Registry](https://registry.modelcontextprotocol.io). Open a result to see where it comes from and exactly which address it connects to.
+
+<img src="docs/screenshots/mcp-search.png" width="320" alt="The MCP servers tab with a search for wikipedia, listing servers with a description, their publisher and a label such as Remote, Remote with key or Local program.">
+
+- **Remote** servers can be added directly, and you enter a key if one is needed. They're kept in that browser.
+- **Local programs** can't be added from a browser. Opening one gives the text the computer's owner can paste into `config/mcp.json`.
+- **Being listed doesn't mean a server is safe.** Anyone can publish to the registry, and what a tool is given goes to that server. The same protections apply as for any server.
+- **What's shared:** the registry gets one word of your search, because it only looks in server names. Searching for one word from a name, like "arxiv", works best.
+- Some servers can't be added yet: those that only allow an OAuth sign-in, use the older SSE connection, or need more than one key.
+
+**Servers that need a key:** a key is one header, usually `Authorization`, stored in that browser and sent through the research server with each request. Paste just the key; `Bearer` is added for `Authorization`. Not every server says beforehand that it needs one, so you can also add or change a key later with **Add key** or **Change key** on your own server. If a tool can't run without a key, a warning above the question box says so, with the server's own explanation.
+
+**Check that a server works** with **Test** on its card, which shows whether it responds, how fast, and how many tools it offers, or what's wrong. Passing doesn't prove a key is right, because many servers only check a key when a tool runs. To be sure, use **Try** on a tool: fill in the values, run it, and read the result. Nothing goes to the model, and the tool doesn't have to be switched on. A tool that can change things really does so, and warns you first.
+
+**Add your own remote server** by hand in the MCP servers tab, with its `https` address and, if it needs one, a key. The key stays in that browser, like the Wikipedia keys. Addresses on your own network are refused here, and servers that only allow an OAuth sign-in in a browser window can't be added yet.
+
+**For everyone using your computer,** copy the example and list your servers. Local programs can only be started from this file, never from a browser:
+
+```sh
+cp config/mcp.example.json config/mcp.json
+```
+
+```json
+{
+  "mcpServers": {
+    "files": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/a/folder"]
+    },
+    "my-remote-server": {
+      "url": "https://example.com/mcp",
+      "headers": { "Authorization": "Bearer ${MY_SERVER_KEY}" },
+      "shared": true
+    }
+  }
+}
+```
+
+- **Secrets:** write them as `${NAME}`, and put `NAME=…` in `.env`. `config/mcp.json` is in `.gitignore`.
+- **Who can use it:** a server only works from the computer itself, unless it has `"shared": true`. There's no login, so anyone on your network can use a shared server, including tools that change things. Don't share a server with access to anything private.
+- **Other names for your computer:** if you open the assistant by a name with dots that isn't `.local`, `.lan`, `.home` or `.internal`, list it in `MCP_ALLOWED_HOSTS` in `.env`.
+- **Changes** take effect after a restart: Ctrl+C and `npm start`, or `docker compose restart`.
+- **In Docker,** programs started with `npx` work. Others, like Python servers, can run separately and connect with `"url": "http://127.0.0.1:…"`.
+
+Each tool you switch on takes up room in every request, and local models have little of it. Settings shows how much is used, and warns when it's a lot.
 
 ## Troubleshooting
 

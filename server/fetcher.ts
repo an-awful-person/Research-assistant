@@ -15,6 +15,9 @@ const ALLOWED_HOSTS = new Set([
   "www.defenseone.com",
   "meta.wikimedia.org",
   "api.openalex.org",
+  "skills.sh",
+  "api.github.com",
+  "raw.githubusercontent.com",
 ]);
 
 const HOST_SUFFIXES = [".archive.org", ".us.archive.org"];
@@ -85,12 +88,14 @@ export async function readLimited(response: Response, maxBytes: number): Promise
  * @param address The address to get, which must be on the list, as must any address it redirects to
  * @param maxBytes The largest response that is accepted
  * @param timeoutMs How long to wait for a response
+ * @param headersFor Extra headers per address, also for any address it redirects to
  * @returns The status and body of the response
  */
 export async function fetchAllowed(
   address: string,
   maxBytes: number,
   timeoutMs: number = DEFAULT_TIMEOUT_MS,
+  headersFor?: (url: URL) => Record<string, string>,
 ): Promise<{ status: number; bytes: Uint8Array }> {
   let url = new URL(address);
 
@@ -100,7 +105,7 @@ export async function fetchAllowed(
     const response = await nextForHost(current.hostname, () =>
       fetch(current, {
         redirect: "manual",
-        headers: { "User-Agent": USER_AGENT },
+        headers: { "User-Agent": USER_AGENT, ...headersFor?.(current) },
         signal: AbortSignal.timeout(timeoutMs),
       }),
     );

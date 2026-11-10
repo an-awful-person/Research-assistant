@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "files": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/a/folder"]
+    },
+    "my-remote-server": {
+      "url": "https://example.com/mcp",
+      "headers": { "Authorization": "Bearer ${MY_SERVER_KEY}" },
+      "shared": true
+    }
+  }
+}

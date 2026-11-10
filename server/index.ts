@@ -7,6 +7,8 @@ import { NotAllowedError } from "./fetcher.ts";
 import { searchCrossref } from "./providers/crossref.ts";
 import { readGovuk, searchGovuk } from "./providers/govuk.ts";
 import { readInternetArchive, searchInternetArchive, searchInternetArchiveTitle } from "./providers/internetArchive.ts";
+import { handleMcp, MCP_PREFIX } from "./mcp/routes.ts";
+import { startOwnerServers, stopOwnerServers } from "./mcp/ownerServers.ts";
 import { OLLAMA_PREFIX, proxyToOllama } from "./ollamaProxy.ts";
 import { readPage } from "./pageReader.ts";
 import { searchLinkedIn } from "./providers/linkedin.ts";
@@ -15,6 +17,8 @@ import { readOverheid, searchOverheid } from "./providers/overheid.ts";
 import { searchReddit } from "./providers/reddit.ts";
 import { blendedSearch } from "./providers/webSearch.ts";
 import { openAlexWorks, SharedKeyError, sharedKeys, wikipediaToken } from "./sharedKeys.ts";
+import { CatalogInputError, readCatalogSkill, searchCatalogs } from "./skillCatalog.ts";
+import { ownerSkills } from "./skills.ts";
 import type { DocumentText, DoctrineDocument, FurtherReading, SourceId } from "./types.ts";
 
 // Keys shared with everyone who uses this assistant can be set in .env. Variables that are already set, such as
@@ -207,7 +211,7 @@ function serveApplication(pathname: string, response: ServerResponse): void {
   createReadStream(target).pipe(response);
 }
 
-const API_PATHS = new Set(["/health", "/keys", "/wikipedia/token", "/doctrine/search", "/doctrine/text", "/news/search", "/reddit/search", "/web/search", "/linkedin/search", "/page/read"]);
+const API_PATHS = new Set(["/health", "/keys", "/skills", "/skills/catalog/search", "/skills/catalog/skill", "/wikipedia/token", "/doctrine/search", "/doctrine/text", "/news/search", "/reddit/search", "/web/search", "/linkedin/search", "/page/read"]);
 
 const OPENALEX_PREFIX = "/openalex";
 
@@ -225,14 +229,24 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     return;
   }
 
+  // The development proxy removes the prefix, and the built application uses it as is.
+  const hasPrefix = url.pathname === API_PREFIX || url.pathname.startsWith(`${API_PREFIX}/`);
+  const apiPath = hasPrefix ? url.pathname.slice(API_PREFIX.length) : url.pathname;
+
+  if (apiPath.startsWith(MCP_PREFIX)) {
+    if (isRateLimited(request.socket.remoteAddress ?? "unknown")) {
+      send(request, response, 429, { error: "Too many requests" });
+    } else {
+      await handleMcp(apiPath, request, response, send);
+    }
+    return;
+  }
+
   if (request.method !== "GET") {
     send(request, response, 405, { error: "Only GET requests are supported" });
     return;
   }
 
-  // The development proxy removes the prefix, and the built application uses it as is.
-  const hasPrefix = url.pathname === API_PREFIX || url.pathname.startsWith(`${API_PREFIX}/`);
-  const apiPath = hasPrefix ? url.pathname.slice(API_PREFIX.length) : url.pathname;
   const isOpenAlexPath = apiPath.startsWith(`${OPENALEX_PREFIX}/`);
   if (!hasPrefix && !API_PATHS.has(apiPath) && !isOpenAlexPath) {
     serveApplication(url.pathname, response);
@@ -248,6 +262,21 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     send(request, response, 200, { status: "ok", app: "research-assistant", docker: process.env.RUNS_IN_DOCKER === "true" });
   } else if (apiPath === "/keys") {
     send(request, response, 200, sharedKeys());
+  } else if (apiPath === "/skills") {
+    send(request, response, 200, { skills: ownerSkills() });
+  } else if (apiPath === "/skills/catalog/search") {
+    const query = (url.searchParams.get("q") ?? "").trim();
+    if (query.length < 2 || query.length > MAX_QUERY_LENGTH) {
+      send(request, response, 400, { error: "A search needs 2 to 200 characters" });
+      return;
+    }
+    send(request, response, 200, await searchCatalogs(query));
+  } else if (apiPath === "/skills/catalog/skill") {
+    send(request, response, 200, await readCatalogSkill(
+      url.searchParams.get("source") ?? "",
+      url.searchParams.get("skillId") ?? "",
+      url.searchParams.get("path") ?? undefined,
+    ));
   } else if (apiPath === "/wikipedia/token") {
     send(request, response, 200, await wikipediaToken());
   } else if (isOpenAlexPath) {
@@ -307,7 +336,7 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
 const server = createServer((request, response) => {
   handle(request, response).catch((error: unknown) => {
     console.error("request failed:", error);
-    const status = error instanceof SharedKeyError ? 404 : error instanceof NotAllowedError ? 403 : 502;
+    const status = error instanceof SharedKeyError ? 404 : error instanceof NotAllowedError ? 403 : error instanceof CatalogInputError ? 400 : 502;
     send(request, response, status, { error: error instanceof Error ? error.message : "Request failed" });
   });
 });
@@ -319,11 +348,15 @@ server.on("error", (error: NodeJS.ErrnoException) => {
 
 server.listen(PORT, HOST, () => {
   console.log(`Research server listening on http://${HOST}:${PORT}`);
+  startOwnerServers();
 });
 
 function stop(): void {
-  server.close(() => process.exit(0));
-  server.closeAllConnections();
+  // Programs started for MCP servers stop with this one.
+  void stopOwnerServers().finally(() => {
+    server.close(() => process.exit(0));
+    server.closeAllConnections();
+  });
 }
 
 process.on("SIGTERM", stop);

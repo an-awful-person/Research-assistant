@@ -9,11 +9,13 @@ import { ConversationsService } from "./conversations.service";
 import { EvidenceService } from "./evidence.service";
 import { ExportService } from "./export.service";
 import { LLMApiService } from "./llmApi.service";
+import { McpService } from "./mcp.service";
 import { MediatorService } from "./mediator.service";
 import { ModelService } from "./model.service";
 import { NominatimService } from "./nominatim.service";
 import { RagService } from "./rag.service";
 import { SharedKeysService } from "./sharedKeys.service";
+import { SkillsService } from "./skills.service";
 import { TemperatureService } from "./temperature.service";
 import { WebSearchService } from "./webSearch.service";
 
@@ -35,6 +37,8 @@ export class AssistantService implements Service {
     private _modelService:ModelService;
     private _exportService:ExportService;
     private _conversationsService:ConversationsService;
+    private _skillsService:SkillsService;
+    private _mcpService:McpService;
 
     private _services:Service[] = [];
 
@@ -58,6 +62,8 @@ export class AssistantService implements Service {
         this._webSearchService = new WebSearchService(this._apiService, this._storageService);
         this._exportService = new ExportService(this);
         this._conversationsService = new ConversationsService(this);
+        this._skillsService = new SkillsService(this);
+        this._mcpService = new McpService(this);
 
         this._services.push(this._LLMApiService);
         this._services.push(this._globalChatService);
@@ -72,6 +78,8 @@ export class AssistantService implements Service {
         this._services.push(this._exportService);
         // Last: it restores the conversation into the chats that the mediator sets up.
         this._services.push(this._conversationsService);
+        this._services.push(this._skillsService);
+        this._services.push(this._mcpService);
     }
 
     init(){
@@ -116,6 +124,14 @@ export class AssistantService implements Service {
 
     get modelService():ModelService{
         return this._modelService;
+    }
+
+    get skillsService():SkillsService{
+        return this._skillsService;
+    }
+
+    get mcpService():McpService{
+        return this._mcpService;
     }
 
     get conversationsService():ConversationsService{

@@ -24,6 +24,8 @@ export class MediatorService implements Service {
 
   private static readonly MAX_REMINDERS = 2;
 
+  private static readonly MAX_SKILL_READS = 5;
+
   private static readonly ADD_SOURCE_IDS = "Your answer doesn't cite any source, although the functions you used found sources with ids, like S1. Write the same answer again with respond, and put the id in square brackets after each statement that comes from a source, like: It was released in 2025 [S1]. Leave statements that don't come from a source without an id.";
 
   // Below this, the mediator itself says that it doesn't have enough to answer.
@@ -44,6 +46,8 @@ export class MediatorService implements Service {
   private _searches: Map<string, FindAgentMessage> = new Map();
 
   private _reminders: number = 0;
+
+  private _skillReads: Set<string> = new Set();
 
   protected __subscriptions: Subscription[] = [];
 
@@ -135,7 +139,12 @@ export class MediatorService implements Service {
 
     this._currentTextInput.set("");
 
-    this.pushMessage(MediatorService.MEDIATOR_AGENT_ID, userMessage);
+    // A skill the user chose is only for the mediator: the chat shows the question as it was asked.
+    const skill = this.__assistantService.skillsService.takeForced();
+    this.pushMessage(
+      MediatorService.MEDIATOR_AGENT_ID,
+      skill === undefined ? userMessage : { ...userMessage, content: this.__assistantService.skillsService.withForcedSkill(text, skill) },
+    );
     this.pushMessage(MediatorService.VISIBLE_CHAT_ID, userMessage);
 
     this.askMediator(this.injectAgentMessage(MediatorService.MEDIATOR_AGENT_ID));
@@ -284,6 +293,10 @@ export class MediatorService implements Service {
     }
   }
 
+  private isSkillFunction(name: string): boolean {
+    return name === KNOWN_FUNCTIONS.LOAD_SKILL || name === KNOWN_FUNCTIONS.READ_SKILL_FILE;
+  }
+
   private isFinalAnswer(functionCall: FindAgentMessage): boolean {
     return functionCall.name === KNOWN_FUNCTIONS.RESPOND || functionCall.name === KNOWN_FUNCTIONS.ASK_USER;
   }
@@ -298,6 +311,15 @@ export class MediatorService implements Service {
     }
 
     const key = `${functionCall.name}:${JSON.stringify(functionCall.parameters)}`.toLowerCase().replace(/\s+/g, " ");
+    // Reading a skill isn't a search, but reading the same one again and again has to end too.
+    if (this.isSkillFunction(functionCall.name)) {
+      if (this._skillReads.has(key) || this._skillReads.size >= MediatorService.MAX_SKILL_READS) {
+        return "This skill or file was already read, or too many were read for this question. Follow what you have.";
+      }
+      this._skillReads.add(key);
+      return undefined;
+    }
+
     if (this._searches.has(key)) {
       return "This exact call was already made, so it was not made again. Change the wording or use another function.";
     }
@@ -328,7 +350,7 @@ export class MediatorService implements Service {
     const usedAgents = new Set(calls.map((call) => call.name));
     const otherAgents = this._agentsService.enabledAgents
       .map((agent) => agent.id)
-      .filter((id) => !usedAgents.has(id) && id !== KNOWN_FUNCTIONS.RESPOND && id !== KNOWN_FUNCTIONS.ASK_USER);
+      .filter((id) => !usedAgents.has(id) && id !== KNOWN_FUNCTIONS.RESPOND && id !== KNOWN_FUNCTIONS.ASK_USER && !this.isSkillFunction(id));
 
     return [
       foundNothing
@@ -490,6 +512,7 @@ export class MediatorService implements Service {
     this._searches = new Map();
     this._reminders = 0;
     this._askedForSourceIds = false;
+    this._skillReads = new Set();
   }
 
   clearChatData() {

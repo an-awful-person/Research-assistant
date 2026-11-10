@@ -1,7 +1,9 @@
 import {
   Close,
   Description,
+  Extension,
   History,
+  Hub,
   QuestionAnswer,
   Settings,
   Source,
@@ -15,7 +17,9 @@ import { AgentsSettingsComponent } from "./agentsSettings.component";
 import { ConversationHistoryComponent } from "./conversationHistory.component";
 import { ConversationsList } from "./conversationsList.component";
 import { DocumentsComponent } from "./documents.component";
+import { McpSettingsComponent } from "./mcpSettings.component";
 import { SettingsComponent } from "./settings.component";
+import { SkillsSettingsComponent } from "./skillsSettings.component";
 import { SourcesListComponent } from "./sourcesList.component";
 
 export function SideMenuComponent(props: {
@@ -79,7 +83,14 @@ export function SideMenuComponent(props: {
             <DocumentsComponent service={props.assistantService.documentsService} />
           </TabPanel>
           <TabPanel value={value} index={5}>
+            <SkillsSettingsComponent service={props.assistantService.skillsService} />
+          </TabPanel>
+          <TabPanel value={value} index={6}>
+            <McpSettingsComponent assistantService={props.assistantService} />
+          </TabPanel>
+          <TabPanel value={value} index={7}>
             <SettingsComponent
+              agentsService={props.assistantService.mediatorService.agentsService}
               themeService={props.themeService}
               temperatureService={props.assistantService.temperatureService}
               modelService={props.assistantService.modelService}
@@ -87,7 +98,7 @@ export function SideMenuComponent(props: {
           </TabPanel>
         </Box>
         {/* In pixels: a width in em would follow each element's own font size, which put the tabs off centre. */}
-        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "stretch", flexShrink: 0, width: isNarrow ? 72 : 64 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "stretch", flexShrink: 0, width: isNarrow ? 72 : 64, overflowY: "auto", scrollbarWidth: "none" }}>
           {isNarrow ? (
             <IconButton onClick={props.onClose} aria-label="Close menu" sx={{ alignSelf: "center", margin: "0.25em 0", width: 44, height: 44 }}>
               <Close />
@@ -95,7 +106,7 @@ export function SideMenuComponent(props: {
           ) : null}
           <Tabs
             orientation="vertical"
-            sx={{ width: "100%" }}
+            sx={{ width: "100%", overflow: "visible", "& .MuiTabs-scroller": { overflow: "visible !important" } }}
             value={value}
             onChange={handleChange}
           >
@@ -124,6 +135,8 @@ const TABS = [
   { title: "Agent Conversations", short: "Steps", icon: <QuestionAnswer /> },
   { title: "Sources used in conversations", short: "Sources", icon: <Source /> },
   { title: "Documents", short: "Docs", icon: <Description /> },
+  { title: "Skills", short: "Skills", icon: <Extension /> },
+  { title: "MCP servers", short: "MCP", icon: <Hub /> },
   { title: "Settings", short: "Settings", icon: <Settings /> },
 ];
 

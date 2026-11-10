@@ -16,6 +16,14 @@ services:
       WIKIPEDIA_CLIENT_ID: ${WIKIPEDIA_CLIENT_ID:-}
       WIKIPEDIA_CLIENT_SECRET: ${WIKIPEDIA_CLIENT_SECRET:-}
       OPENALEX_API_KEY: ${OPENALEX_API_KEY:-}
+    # Secrets for MCP servers in config/mcp.json, written there as ${NAME}, come from .env.
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      # A folder, because Docker would make a folder if a single file doesn't exist yet.
+      - ./config:/app/config:ro
+      - ./skills:/app/skills:ro
     depends_on:
       - searxng
     restart: unless-stopped

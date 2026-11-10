@@ -6,6 +6,11 @@ type ParameterSchema = {
   items?: { type?: string };
 };
 
+type ToolSchema = {
+  properties?: Record<string, ParameterSchema>;
+  required?: string[];
+};
+
 /**
  * Reads function calls written by the mediator without using an LLM, which could change the parameters.
  */
@@ -37,19 +42,25 @@ export class FunctionCallUtils {
 
     const properties = this.properties(agent);
     const names = Object.keys(properties);
+    const required = this.required(agent, names);
+
+    // Some tools take nothing, or nothing that is required.
+    if (call[2].trim() === "" && required.length === 0) {
+      return { name: agent.id, parameters: [JSON.stringify({})] };
+    }
     if (names.length === 0) {
       return undefined;
     }
 
     // With a single parameter everything belongs to it, so its text can safely contain commas and quotes.
-    const rawArguments = names.length === 1 ? [call[2]] : this.splitArguments(call[2], names);
-    if (rawArguments === undefined || rawArguments.length !== names.length) {
+    const rawArguments = names.length === 1 ? [call[2]] : this.splitArguments(call[2], names, properties);
+    if (rawArguments === undefined || rawArguments.length > names.length || rawArguments.length < required.length) {
       return undefined;
     }
 
     const parameters: Record<string, unknown> = {};
-    for (let index = 0; index < names.length; index++) {
-      const { name, value } = this.readName(rawArguments[index], names);
+    for (let index = 0; index < rawArguments.length; index++) {
+      const { name, value } = this.readName(rawArguments[index], names, properties);
       const parameterName = name ?? names[index];
       const parsedValue = this.isCode(value)
         ? undefined
@@ -58,6 +69,9 @@ export class FunctionCallUtils {
         return undefined;
       }
       parameters[parameterName] = parsedValue;
+    }
+    if (!required.every((name) => name in parameters)) {
+      return undefined;
     }
 
     return { name: agent.id, parameters: [JSON.stringify(parameters)] };
@@ -105,7 +119,7 @@ export class FunctionCallUtils {
       return false;
     }
 
-    const argument = this.readName(call[2], Object.keys(this.properties(agent))).value.trim();
+    const argument = this.readName(call[2], Object.keys(this.properties(agent)), this.properties(agent)).value.trim();
     if (this.QUOTES.includes(argument[0])) {
       return !new RegExp(`${argument[0]}\\s*\\)`).test(argument.slice(1));
     }
@@ -121,7 +135,7 @@ export class FunctionCallUtils {
   static closeCutOffCall(functionString: string, agents: MediatorAccessableAgent[]): string {
     const call = this.firstCall(functionString, agents).trimEnd();
     const argument = call.slice(call.indexOf("(") + 1);
-    const quote = this.readName(argument, []).value.trimStart()[0];
+    const quote = this.readName(argument, [], {}).value.trimStart()[0];
     const named = argument.match(/^\s*\w+\s*[:=]\s*(['"`])/)?.[1];
     return `${call}${named ?? (this.QUOTES.includes(quote) ? quote : "")})`;
   }
@@ -149,25 +163,51 @@ export class FunctionCallUtils {
   }
 
   private static properties(agent: MediatorAccessableAgent): Record<string, ParameterSchema> {
-    const schema = agent.jsonSchema as unknown as {
-      properties?: Record<string, ParameterSchema>;
-    };
-    return schema.properties ?? {};
+    return (agent.jsonSchema as unknown as ToolSchema).properties ?? {};
+  }
+
+  /** The parameters that must be given. A schema that doesn't say makes them all required. */
+  private static required(agent: MediatorAccessableAgent, names: string[]): string[] {
+    const required = (agent.jsonSchema as unknown as ToolSchema).required;
+    return Array.isArray(required) ? required.filter((name) => names.includes(name)) : names;
+  }
+
+  /** @returns Where the bracket opened at this position closes, or -1 if it doesn't. Text in quotes doesn't count. */
+  private static closingBracket(text: string, start: number): number {
+    let depth = 0;
+    let quote: string | undefined;
+    for (let index = start; index < text.length; index++) {
+      const character = text[index];
+      if (quote !== undefined) {
+        if (character === "\\") index++;
+        else if (character === quote) quote = undefined;
+      } else if (this.QUOTES.includes(character)) {
+        quote = character;
+      } else if (character === "[" || character === "{") {
+        depth++;
+      } else if (character === "]" || character === "}") {
+        depth--;
+        if (depth === 0) return index;
+      }
+    }
+    return -1;
   }
 
   /**
    * Splits on the commas between arguments. A quote only closes an argument if a next argument or the end follows,
    * so that text like 'What's the rate, exactly?' stays together.
    */
-  private static splitArguments(text: string, names: string[]): string[] | undefined {
+  private static splitArguments(text: string, names: string[], properties: Record<string, ParameterSchema>): string[] | undefined {
     const parameterNames = [...names, ...Object.keys(this.PARAMETER_ALIASES)].join("|");
-    const nextArgument = new RegExp(`^\\s*,\\s*(?:['"\`\\[]|(?:${parameterNames})\\s*[:=])`);
+    // Text like 'one', 2 only ends at that comma if a parameter can be something other than text.
+    const bareValues = Object.values(properties).some((property) => property.type !== "string") ? "|[{\\d-]|true\\b|false\\b" : "";
+    const nextArgument = new RegExp(`^\\s*,\\s*(?:['"\`\\[]${bareValues}|(?:${parameterNames})\\s*[:=])`);
     const argumentsFound: string[] = [];
     let position = 0;
 
     while (position < text.length) {
       const start = position;
-      const prefix = this.readName(text.slice(start), names).prefixLength;
+      const prefix = this.readName(text.slice(start), names, properties).prefixLength;
       const valueStart = start + prefix + (text.slice(start + prefix).match(/^\s*/)?.[0].length ?? 0);
       const opening = text[valueStart];
       let end = -1;
@@ -188,7 +228,8 @@ export class FunctionCallUtils {
           return undefined;
         }
       } else {
-        const closing = opening === "[" ? text.indexOf("]", valueStart) : valueStart - 1;
+        const bracket = opening === "[" || opening === "{" ? this.closingBracket(text, valueStart) : -1;
+        const closing = bracket !== -1 ? bracket : opening === "[" ? text.indexOf("]", valueStart) : valueStart - 1;
         const comma = text.indexOf(",", closing + 1);
         end = comma === -1 ? text.length : comma;
       }
@@ -208,12 +249,17 @@ export class FunctionCallUtils {
   private static readName(
     rawArgument: string,
     names: string[],
+    properties: Record<string, ParameterSchema>,
   ): { name?: string; value: string; prefixLength: number } {
-    const match = rawArgument.match(/^\s*(\w+)\s*[:=]\s*(?=['"`[])/);
+    const match = rawArgument.match(/^\s*(\w+)\s*[:=]\s*(?=['"`[{\d-]|true\b|false\b)/);
     const alias = match ? this.PARAMETER_ALIASES[match[1]] : undefined;
     const name = names.includes(match?.[1] ?? "") ? match?.[1] : alias;
 
     if (match === null || name === undefined || !names.includes(name)) {
+      return { value: rawArgument, prefixLength: 0 };
+    }
+    // Text that happens to start like "limit: 5" isn't a named argument, unless it's a quoted value of that name.
+    if (properties[name]?.type === "string" && !/['"`[]/.test(rawArgument[match[0].length] ?? "")) {
       return { value: rawArgument, prefixLength: 0 };
     }
     return { name: name, value: rawArgument.slice(match[0].length), prefixLength: match[0].length };

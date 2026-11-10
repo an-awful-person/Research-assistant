@@ -31,7 +31,7 @@ export function AgentsSettingsComponent(props: {
 
   return (
     <Box>
-      {agents.map((agent) => {
+      {agents.filter((agent) => !agent.hiddenFromSettings).map((agent) => {
         return <AgentAccordionComponent agent={agent} key={agent.id} />;
       })}
     </Box>

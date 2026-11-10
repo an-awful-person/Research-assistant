@@ -5,6 +5,7 @@ import { type Service } from "../../interfaces/service.interface";
 import { Reactive } from "../../services/reactive.service";
 import { ReactiveArray } from "../../services/reactiveArray.service";
 import { AskUserAgent } from "../agents/mediator/askUser.agent";
+import { LoadSkillAgent, ReadSkillFileAgent } from "../agents/mediator/skills.agent";
 import { RespondAgent } from "../agents/mediator/respond.agent";
 import { ArxivAgent } from "../agents/tools/arxiv/arxiv.agent";
 import { DefenceNewsAgent } from "../agents/tools/defenceNews/defenceNews.agent";
@@ -18,7 +19,7 @@ import { NewsAgent } from "../agents/tools/news/news.agent";
 import { NominatimReverseGeocodingAgent } from "../agents/tools/nominatim.reverseGeocoding.agent";
 import { NominatimSearchAgent } from "../agents/tools/nominatim.search.agent";
 import { WikipediaAgent } from "../agents/tools/wikipedia/wikipedia.agent";
-import { ADDITIONAL_AGENT_DESCRIPTION, AGENTS_DESCRIPTION_KEYWORD, DOCUMENTS_KEYWORD } from "../model/decoding.model";
+import { ADDITIONAL_AGENT_DESCRIPTION, AGENTS_DESCRIPTION_KEYWORD, DOCUMENTS_KEYWORD, SKILLS_KEYWORD } from "../model/decoding.model";
 import type { FindAgentMessage } from "../model/llm.model";
 import { AssistantService } from "./assistant.service";
 
@@ -27,6 +28,8 @@ export enum KNOWN_FUNCTIONS {
   ASK_USER = "askUser",
   RESPOND = "respond",
   NONE = "none",
+  LOAD_SKILL = "loadSkill",
+  READ_SKILL_FILE = "readSkillFile",
 }
 
 export type KnownFunctionsAnswer = {
@@ -55,7 +58,15 @@ export class AgentsService implements Service {
 
   private static readonly ENABLED_STORAGE_KEY = "agentsEnabled";
 
+  private static readonly EXTENSION_TOOLS_NOTE = "Functions starting with mcp_ were switched on by the user for a reason. If one fits, prefer it over a built-in function that does the same.";
+
   private _currentConversation: string | undefined = undefined;
+
+  /** The tools of MCP servers, which change while the application runs. */
+  private _extensionAgents: { agent: MediatorAccessableAgent; subscription: Subscription }[] = [];
+
+  /** Roughly how much of each request the enabled MCP tools and skills take up, in tokens. */
+  private _extensionTokens: Reactive<number> = new Reactive<number>(0);
 
   constructor(assistantService: AssistantService) {
     this._assistantService = assistantService;
@@ -83,6 +94,8 @@ export class AgentsService implements Service {
     this._agents.push(new DocumentAgent(this._assistantService, this));
     this._agents.push(new NominatimSearchAgent(this, this._assistantService));
     this._agents.push(new NominatimReverseGeocodingAgent(this._assistantService));
+    this._agents.push(new LoadSkillAgent(this._assistantService, this));
+    this._agents.push(new ReadSkillFileAgent(this._assistantService, this));
     this._agents.push(new AskUserAgent(this));
     this._agents.push(new RespondAgent(this));
 
@@ -135,6 +148,37 @@ export class AgentsService implements Service {
    */
   isDisabledByUser(id: string): boolean {
     return this.loadEnabledChoices()[id] === false;
+  }
+
+  /**
+   * @param id The id of an agent
+   * @returns If the user chose to turn this agent on
+   */
+  isEnabledByUser(id: string): boolean {
+    return this.loadEnabledChoices()[id] === true;
+  }
+
+  get extensionTokens(): Reactive<number> {
+    return this._extensionTokens;
+  }
+
+  /**
+   * Replaces the agents that come from outside, like the tools of MCP servers.
+   * @param agents The agents, which start in the state the user left them in
+   */
+  replaceExtensionAgents(agents: MediatorAccessableAgent[]): void {
+    const old = new Set(this._extensionAgents.map(({ agent }) => agent));
+    this._extensionAgents.forEach(({ subscription }) => subscription.unsubscribe());
+    this._extensionAgents = agents.map((agent) => {
+      if (agent.canBeEnabled && this.isEnabledByUser(agent.id)) {
+        agent.enabled.set(true);
+      }
+      return {
+        agent: agent,
+        subscription: agent.enabled.listener().subscribe(() => this.setNewLLMMessage(ADDITIONAL_AGENT_DESCRIPTION)),
+      };
+    });
+    this._agents.set([...this._agents.value.filter((agent) => !old.has(agent)), ...agents]);
   }
 
   /**
@@ -192,15 +236,21 @@ export class AgentsService implements Service {
   }
 
   injectAgentsInLLMMessage(message: string): string {
+    const skills = this._assistantService.skillsService?.promptListing ?? "";
+    this._extensionTokens?.set(Math.ceil(
+      (skills.length + this._extensionAgents.filter(({ agent }) => agent.enabled.value).reduce((total, { agent }) => total + agent.agentUsageDescription.length, 0)) / 4,
+    ));
+    const hasExtensionTools = this._extensionAgents.some(({ agent }) => agent.enabled.value);
     return message
       .replace(
         AGENTS_DESCRIPTION_KEYWORD,
         this._agents.value
           .filter((agent) => agent.enabled.value)
           .map((agent) => agent.agentUsageDescription)
-          .join("\n"),
+          .join("\n") + (hasExtensionTools ? `\n${AgentsService.EXTENSION_TOOLS_NOTE}` : ""),
       )
-      .replace(DOCUMENTS_KEYWORD, this.describeDocuments());
+      .replace(DOCUMENTS_KEYWORD, this.describeDocuments())
+      .replace(SKILLS_KEYWORD, skills);
   }
 
   /**

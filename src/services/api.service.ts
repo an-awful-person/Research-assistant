@@ -113,6 +113,21 @@ export class ApiService implements Service {
       });
   }
 
+  /**
+   * Sends JSON without showing popups, for requests whose errors the caller explains itself.
+   * @param endpoint Where to send it
+   * @param body What to send
+   * @returns The response
+   */
+  public silentPost(endpoint: string, body: unknown): Promise<Response> {
+    this._progressService.increaseCounter();
+    return fetch(endpoint, {
+      method: API_METHOD.POST,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }).finally(() => this._progressService.decreaseCounter());
+  }
+
   public apiCall<T>(
     endpoint: string,
     options?: {

@@ -1,8 +1,9 @@
 import { ArrowUpward } from "@mui/icons-material";
-import { Box, IconButton, InputBase, Paper, Tooltip, Typography, useMediaQuery } from "@mui/material";
+import { Box, Chip, IconButton, InputBase, List, ListItemButton, ListItemText, Paper, Tooltip, Typography, useMediaQuery } from "@mui/material";
 import { type JSX, type KeyboardEvent, useState } from "react";
 import { useReactive } from "../../services/reactive.service";
 import { MESSAGE_ROLES } from "../constants/llm.constants";
+import type { Skill } from "../model/extensions.model";
 import type { META_LMMMessage } from "../model/llm.model";
 import { AgentsService } from "../services/agents.service";
 import { MediatorService } from "../services/mediator.service";
@@ -35,11 +36,43 @@ export function ChatInputComponent(props: {
   const busy = status !== AgentsService.CLOSE_STATUS;
   const canSend = !busy && (chatInput ?? "").trim() !== "";
 
+  const skillsService = props.chatService.assistantService.skillsService;
+  const [skills, setSkills] = useState<Skill[]>(skillsService.enabledSkills);
+  const [forced, setForced] = useState<string | undefined>(skillsService.forced.value);
+  const refreshSkills = () => setSkills(skillsService.enabledSkills);
+  useReactive(skillsService.skills, refreshSkills);
+  useReactive(skillsService.disabled, refreshSkills);
+  useReactive(skillsService.forced, setForced);
+  // Which line of the skill list is highlighted: only what is on screen.
+  const [highlighted, setHighlighted] = useState<number>(0);
+
+  const typedSkill = /^\/([a-z0-9-]*)$/i.exec(chatInput ?? "")?.[1]?.toLowerCase();
+  const matches = typedSkill === undefined ? [] : skills.filter((skill) => skill.name.includes(typedSkill)).slice(0, 6);
+  const forcedSkill = skills.find((skill) => skill.id === forced);
+
+  const chooseSkill = (skill: Skill) => {
+    skillsService.force(skill.id);
+    props.chatService.currentTextInput.set("");
+    setHighlighted(0);
+  };
+
   const send = () => {
     if (canSend) props.chatService.submitDecodingMessage();
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (matches.length > 0) {
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        setHighlighted((highlighted + (event.key === "ArrowDown" ? 1 : matches.length - 1)) % matches.length);
+        return;
+      }
+      if ((event.key === "Enter" && !event.shiftKey) || event.key === "Tab") {
+        event.preventDefault();
+        chooseSkill(matches[Math.min(highlighted, matches.length - 1)]);
+        return;
+      }
+    }
     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
       send();
@@ -48,6 +81,35 @@ export function ChatInputComponent(props: {
 
   return (
     <Box sx={{ width: "100%" }}>
+      {matches.length > 0 ? (
+        <Paper variant="outlined" sx={{ marginBottom: "0.5em", maxHeight: "35vh", overflowY: "auto" }} data-testid="skill-picker">
+          <List dense disablePadding role="listbox" aria-label="Skills">
+            {matches.map((skill, index) => (
+              <ListItemButton
+                key={skill.id}
+                role="option"
+                aria-selected={index === Math.min(highlighted, matches.length - 1)}
+                selected={index === Math.min(highlighted, matches.length - 1)}
+                onClick={() => chooseSkill(skill)}
+                sx={{ minHeight: 44 }}
+              >
+                <ListItemText primary={`/${skill.name}`} secondary={skill.description} slotProps={{ secondary: { noWrap: true } }} />
+              </ListItemButton>
+            ))}
+          </List>
+        </Paper>
+      ) : null}
+      {forcedSkill !== undefined ? (
+        <Chip
+          size="small"
+          color="primary"
+          variant="outlined"
+          label={`Skill for this question: ${forcedSkill.name}`}
+          onDelete={() => skillsService.force(undefined)}
+          sx={{ marginBottom: "0.5em", maxWidth: "100%" }}
+          data-testid="skill-forced"
+        />
+      ) : null}
       <Paper
         variant="outlined"
         sx={{

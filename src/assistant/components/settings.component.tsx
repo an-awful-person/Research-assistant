@@ -1,10 +1,13 @@
 import {
+  Alert,
   Box,
   FormControl,
   FormControlLabel,
   FormLabel,
+  LinearProgress,
   Radio,
   RadioGroup,
+  Typography,
 } from "@mui/material";
 import { useState, type ReactNode } from "react";
 import type { ThemeDefinition } from "../../constants/theme.constants";
@@ -14,6 +17,10 @@ import type { TemperatureService } from "../services/temperature.service";
 import { GeneralTemperatureComponent } from "./temperatureSlider.component";
 import { GeneralModelComponent } from "./modelSelect.component";
 import type { ModelService } from "../services/model.service";
+import type { AgentsService } from "../services/agents.service";
+import { LLMApiService } from "../services/llmApi.service";
+
+const EXTENSION_TOKEN_WARNING = 4000;
 
 /**
  * A small preview of the background, text and accent colors of a theme.
@@ -41,10 +48,40 @@ function ThemeSwatch(props: { theme: ThemeDefinition }): ReactNode {
   );
 }
 
+/** The local models have limited room, and every enabled tool and skill description takes some of it in each request. */
+function ExtensionRoomComponent(props: { service: AgentsService }): ReactNode {
+  const [tokens, setTokens] = useState<number>(props.service.extensionTokens.value);
+  useReactive(props.service.extensionTokens, setTokens);
+  const tooMuch = tokens > EXTENSION_TOKEN_WARNING;
+
+  return (
+    <Box data-testid="extension-room">
+      <FormLabel>Room used by skills and MCP tools</FormLabel>
+      <LinearProgress
+        variant="determinate"
+        color={tooMuch ? "warning" : "primary"}
+        value={Math.min(100, (tokens / EXTENSION_TOKEN_WARNING) * 100)}
+        aria-label="Room used by skills and MCP tools"
+        sx={{ margin: "0.5em 0" }}
+      />
+      <Typography variant="caption" component="p" data-testid="extension-room-text">
+        About {tokens.toLocaleString("en")} of {LLMApiService.CONTEXT_TOKENS.toLocaleString("en")} tokens per request.
+      </Typography>
+      {tooMuch ? (
+        <Alert severity="warning" sx={{ marginTop: "0.5em" }} data-testid="extension-room-warning">
+          That is a lot for a local model, which leaves less room for what it finds, and may make it choose worse. Switch
+          off the tools and skills you don't need.
+        </Alert>
+      ) : null}
+    </Box>
+  );
+}
+
 export function SettingsComponent(props: {
   themeService: ThemeService;
   temperatureService: TemperatureService;
   modelService: ModelService;
+  agentsService: AgentsService;
 }): ReactNode {
   const [theme, setTheme] = useState<ThemeDefinition>(props.themeService.theme.value);
 
@@ -77,6 +114,7 @@ export function SettingsComponent(props: {
       </FormControl>
       <GeneralModelComponent service={props.modelService} />
       <GeneralTemperatureComponent service={props.temperatureService} />
+      <ExtensionRoomComponent service={props.agentsService} />
     </Box>
   );
 }

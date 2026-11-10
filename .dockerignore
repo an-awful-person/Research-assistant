@@ -5,6 +5,7 @@ dist
 *.log
 # Secrets stay out of the image: compose passes the keys in when the container starts.
 .env
+config/mcp.json
 .env.*
 *.pem
 *.key

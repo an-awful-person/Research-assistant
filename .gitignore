@@ -26,6 +26,7 @@ dist-ssr
 # Secrets: keys, passwords and certificates must never be committed.
 # .env holds the keys shared with everyone who uses the assistant; .env.example shows which ones exist.
 .env
+config/mcp.json
 .env.*
 !.env.example
 *.pem

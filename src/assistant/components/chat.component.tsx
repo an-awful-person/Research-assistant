@@ -9,6 +9,7 @@ import { MediatorService } from "../services/mediator.service";
 import { ChatInputComponent } from "./chatInput.component";
 import { ChatMessagesComponent } from "./chatMessages.component";
 import { ActivityStatusComponent } from "./activity.component";
+import { McpApprovalComponent } from "./mcpApproval.component";
 
 export function ChatComponent(props: {
   assistantService: AssistantService;
@@ -113,6 +114,7 @@ export function ChatComponent(props: {
       </Box>
 
       <Box sx={{ flexGrow: 0, padding: props.compact ? "0 0.5em 0.5em 0.5em" : "0.25em 1em 1em 1em" }}>
+        <McpApprovalComponent assistantService={props.assistantService} />
         <ActivityStatusComponent assistantService={props.assistantService} />
         <ChatInputComponent chatService={props.assistantService.mediatorService} showHint={!props.compact} />
       </Box>

@@ -51,7 +51,7 @@ export function isPublicAddress(address: string): boolean {
 /**
  * Checks the address at the moment of connecting, so that a name can't point somewhere else after being checked.
  */
-function publicLookup(
+export function publicLookup(
   hostname: string,
   options: { all?: boolean },
   callback: (error: Error | null, address?: unknown, family?: number) => void,
